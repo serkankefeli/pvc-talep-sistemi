@@ -1,0 +1,78 @@
+# Production overlay. Base compose.yaml calisma icin gerekli servisleri
+# tanimlar; bu dosya onlari gercek yayina uygun hale getirir.
+#
+# Kullanim:
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# Kok dizindeki .env yalniz Compose interpolasyonu icindir (POSTGRES_*,
+# PVC_PUBLIC_URL, PVC_WEB_PORT). Uygulama sirlari backend/.env ve
+# backend/.env.docker dosyalarindan gelmeye devam eder.
+
+name: pvc
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${PVC_NETWORK_SUBNET:-172.31.240.0/24}
+
+volumes:
+  db-data:
+
+services:
+  db:
+    image: postgres:16-alpine
+    init: true
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB zorunlu}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER zorunlu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD zorunlu}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  api:
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      CORS_ORIGINS: ${PVC_PUBLIC_URL:?PVC_PUBLIC_URL zorunlu}
+      ADMIN_PANEL_BASE_URL: ${PVC_PUBLIC_URL}/admin
+    # Her istegin socket karsiligi web container'idir; varsayilan haliyle hiz
+    # sinirlayici butun ziyaretcileri tek istemci sayar. Yalniz compose agina
+    # guvenerek uvicorn gercek istemciyi X-Forwarded-For zincirinden cozer;
+    # internetten gelen sahte bir XFF degeri zincirin solunda kaldigi icin
+    # dikkate alinmaz.
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --no-server-header
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - ${PVC_NETWORK_SUBNET:-172.31.240.0/24}
+    # API host'a hic acilmaz; web container'i /api/ isteklerini ag uzerinden
+    # dogrudan api:8000'e tasir.
+    ports: !reset []
+
+  web:
+    ports: !override
+      - "127.0.0.1:${PVC_WEB_PORT:-4310}:80"
