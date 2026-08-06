@@ -10,6 +10,11 @@ Ziyaretci -> host nginx (443, TLS) -> 127.0.0.1:4310 web container
                                         |-- /api/ -> api container :8000 -> db :5432
 ```
 
+> **Overlay dosyasi zorunludur.** `compose.yaml` tek basina calistirilirsa API'yi
+> `127.0.0.1:8000`'e yayinlar; bu port sunucuda **canli montajtakip.com** vhost'unun
+> proxy hedefidir. Her komutta `-f compose.yaml -f compose.prod.yaml` birlikte
+> verilmelidir — overlay bu yayini `!reset` ile kaldirir.
+
 ## 0. On kosullar
 
 Sunucuda baska projeler calisiyor. Kuruluma baslamadan once cakisma olup
@@ -24,6 +29,15 @@ ss -ltnp | grep -E ':(4310|5432)\b' ; docker network ls ; ip -o -4 addr show | a
 - `172.31.240.0/24` araligi kullanimda olmamali. Doluysa `PVC_NETWORK_SUBNET`
   degistirilir; bu deger ayni zamanda uvicorn'un guvendigi proxy araligidir,
   ikisi tek degiskenden gelir.
+
+Bellek: sunucuda 3.7 GB RAM var ve ayni kutuda baska uretim servisleri
+calisiyor. Swap yoksa once eklenmelidir; Angular derlemesi bu tamponsuz
+ortamda diger servisleri riske atar.
+
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
 
 ## 1. DNS
 
@@ -84,10 +98,13 @@ islemi 503 doner, sessizce basarili gorunmez.
 
 ```bash
 cp backend/.env.docker.example backend/.env.docker
+sh deploy/set-admin-password.sh
 ```
 
-Argon2 hash'i uretmek icin `backend/README.md`'deki yontem kullanilir. Duz
-parola hicbir dosyaya yazilmaz.
+Script parolayi ekranda gostermeden sorar, Argon2id hash'ini uretip dosyaya
+yazar. Duz parola hicbir dosyaya, kabuk gecmisine veya surec listesine
+dusmez — docker'a yalniz stdin uzerinden gecer. Once imajlarin derlenmis
+olmasi gerekir (adim 4).
 
 > `ENVIRONMENT=production` iken `ADMIN_PASSWORD_HASH` bos veya `JWT_SECRET`
 > varsayilan birakilirsa uygulama acilista hata verip durur (`config.py`
