@@ -33,7 +33,7 @@ HASH="$(
         run --rm --no-deps -T api \
         python -c 'import sys
 from pwdlib import PasswordHash
-print(PasswordHash.recommended().hash(sys.stdin.read()))' | tr -d '\r'
+print(PasswordHash.recommended().hash(sys.stdin.read()))' | tr -d '\r' | grep '^\$argon2' | tail -n 1
 )"
 PASSWORD=''
 
