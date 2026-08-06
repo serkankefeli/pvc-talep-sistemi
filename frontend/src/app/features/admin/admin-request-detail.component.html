@@ -1,0 +1,287 @@
+<nav class="breadcrumb" aria-label="Sayfa yolu">
+  <a routerLink="/admin">Yönetim</a>
+  <span aria-hidden="true">/</span>
+  <a routerLink="/admin/talepler">Talep Merkezi</a>
+  @if (detail(); as breadcrumbRequest) {
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ breadcrumbRequest.request_number }}</span>
+  }
+</nav>
+
+@if (loading()) {
+  <div class="state-card" role="status">Talep yükleniyor…</div>
+} @else if (loadError()) {
+  <div class="state-card error-state" role="alert">
+    <p>{{ loadError() }}</p>
+    <button type="button" class="button secondary" (click)="load()">Yeniden dene</button>
+  </div>
+} @else if (detail(); as request) {
+  <header class="detail-heading">
+    <div>
+      <p class="eyebrow">TALEP {{ request.request_number }}</p>
+      <h2>{{ request.contact.full_name }}</h2>
+      <p>{{ request.items.length }} ürün kalemli görsel teklif talebi</p>
+    </div>
+    <div class="heading-actions">
+      <button
+        type="button"
+        class="favorite-button"
+        [class.active]="request.favorite"
+        [attr.aria-pressed]="request.favorite"
+        [attr.aria-label]="
+          request.favorite ? 'Talebi favorilerden çıkar' : 'Talebi favorilere ekle'
+        "
+        [disabled]="favoriteSaving()"
+        (click)="toggleFavorite()"
+      >
+        <span class="favorite-icon" aria-hidden="true">{{ request.favorite ? '★' : '☆' }}</span>
+        <span>{{ request.favorite ? 'Favoride' : 'Favoriye ekle' }}</span>
+      </button>
+      <span class="status" [attr.data-status]="request.status">
+        {{ statusLabels[request.status] }}
+      </span>
+    </div>
+  </header>
+
+  @if (favoriteMessage()) {
+    <p class="favorite-message" role="status">{{ favoriteMessage() }}</p>
+  }
+
+  <section class="record-timing panel" aria-labelledby="record-timing-title">
+    <h3 id="record-timing-title" class="visually-hidden">Talep hareket zamanları</h3>
+    <dl>
+      <div>
+        <dt>Oluşturuldu</dt>
+        <dd>
+          <time [attr.datetime]="request.created_at">
+            {{ request.created_at | date: 'dd.MM.yyyy HH:mm' }}
+          </time>
+        </dd>
+      </div>
+      <div>
+        <dt>Son güncelleme</dt>
+        <dd>
+          <time [attr.datetime]="request.updated_at">
+            {{ request.updated_at | date: 'dd.MM.yyyy HH:mm' }}
+          </time>
+        </dd>
+      </div>
+      <div>
+        <dt>Yönetici bildirimi</dt>
+        <dd class="delivery-detail">
+          <span class="delivery-state" [attr.data-state]="request.admin_notification_state">
+            {{ adminNotificationLabel(request.admin_notification_state) }}
+          </span>
+          @if (request.admin_notified_at) {
+            <time [attr.datetime]="request.admin_notified_at">
+              {{ request.admin_notified_at | date: 'dd.MM.yyyy HH:mm' }}
+            </time>
+          }
+        </dd>
+      </div>
+      <div>
+        <dt>Müşteri e-postası</dt>
+        <dd class="delivery-detail">
+          <span
+            class="delivery-state"
+            [attr.data-state]="request.customer_email_sent_at ? 'sent' : 'pending'"
+          >
+            {{ request.customer_email_sent_at ? 'Gönderildi' : 'Henüz gönderilmedi' }}
+          </span>
+          @if (request.customer_email_sent_at) {
+            <time [attr.datetime]="request.customer_email_sent_at">
+              {{ request.customer_email_sent_at | date: 'dd.MM.yyyy HH:mm' }}
+            </time>
+          }
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="detail-grid">
+    <section class="main-column">
+      <article class="panel contact-panel">
+        <div class="panel-title">
+          <h3>Müşteri ve iletişim</h3>
+          <span>{{
+            request.contact.preferred_contact === 'phone' ? 'Telefon tercihli' : 'E-posta tercihli'
+          }}</span>
+        </div>
+        <dl>
+          <div>
+            <dt>Ad soyad</dt>
+            <dd>{{ request.contact.full_name }}</dd>
+          </div>
+          <div>
+            <dt>Firma</dt>
+            <dd>{{ request.contact.company_name || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Telefon</dt>
+            <dd>
+              @if (request.contact.phone) {
+                <a [href]="'tel:' + request.contact.phone">{{ request.contact.phone }}</a>
+              } @else {
+                —
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>E-posta</dt>
+            <dd>
+              @if (request.contact.email) {
+                <a [href]="'mailto:' + request.contact.email">{{ request.contact.email }}</a>
+              } @else {
+                —
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Konum</dt>
+            <dd>{{ request.contact.district || '' }} {{ request.contact.city || '—' }}</dd>
+          </div>
+        </dl>
+        @if (request.project_note) {
+          <div class="project-note">
+            <strong>Proje notu</strong>
+            <p>{{ request.project_note }}</p>
+          </div>
+        }
+      </article>
+
+      <section aria-labelledby="products-title">
+        <div class="section-title">
+          <h3 id="products-title">Ürünler</h3>
+          <span>{{ request.items.length }} kalem</span>
+        </div>
+        <div class="product-list">
+          @for (item of request.items; track $index) {
+            <article class="panel product-item">
+              <div>
+                <p class="eyebrow">ÜRÜN {{ $index + 1 }}</p>
+                <h4>{{ productLabel(item.product_type) }}</h4>
+                <ul>
+                  <li>
+                    <span>
+                      {{
+                        item.product_type === 'balcony_enclosure' ? 'Ana cephe × yükseklik' : 'Ölçü'
+                      }}
+                    </span>
+                    {{ item.width_mm }} × {{ item.height_mm }} mm
+                  </li>
+                  @if (balconySegments(item).length) {
+                    <li>
+                      <span>Toplam açık cephe</span>
+                      {{ balconyTotalWidth(item) }} mm
+                    </li>
+                    @for (segment of balconySegments(item); track $index) {
+                      <li>
+                        <span>{{ segment.label }}</span>
+                        {{ segment.width_mm }} mm
+                      </li>
+                    }
+                  }
+                  <li><span>Adet</span> {{ item.quantity }}</li>
+                  <li><span>Renk</span> {{ item.color }}</li>
+                  @if (item.profile_series) {
+                    <li><span>Seri</span> {{ item.profile_series }}</li>
+                  }
+                  @for (answer of item.catalog_answers | keyvalue; track answer.key) {
+                    <li>
+                      <span>{{ catalogAnswerLabel(answer.key) }}</span>
+                      {{ catalogAnswerValue(answer.value) }}
+                    </li>
+                  }
+                </ul>
+                @if (item.notes) {
+                  <p class="item-note">{{ item.notes }}</p>
+                }
+              </div>
+              <app-product-preview [item]="item" />
+            </article>
+          }
+        </div>
+      </section>
+    </section>
+
+    <aside class="side-column">
+      <form class="panel admin-form" [formGroup]="updateForm" (ngSubmit)="save()">
+        <div class="panel-title">
+          <h3>İç değerlendirme</h3>
+          <span>Yalnız yönetici</span>
+        </div>
+        <div class="field">
+          <label for="requestStatus">Durum</label>
+          <select id="requestStatus" formControlName="status">
+            @for (entry of statusLabels | keyvalue; track entry.key) {
+              <option [value]="entry.key">{{ entry.value }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="quotedAmount">Gönderilecek tutar <span>₺</span></label>
+          <input
+            id="quotedAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            formControlName="quotedAmount"
+          />
+        </div>
+        <div class="field">
+          <label for="internalNotes">İç notlar</label>
+          <textarea id="internalNotes" rows="6" formControlName="internalNotes"></textarea>
+        </div>
+        @if (saveMessage()) {
+          <p class="action-message" role="status">{{ saveMessage() }}</p>
+        }
+        <button type="submit" class="button primary" [disabled]="saving()">
+          {{ saving() ? 'Kaydediliyor…' : 'Değişiklikleri kaydet' }}
+        </button>
+      </form>
+
+      <form class="panel email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">
+        <div class="panel-title">
+          <h3>Müşteriye e-posta</h3>
+          <span>Açık gönderim eylemi</span>
+        </div>
+        @if (!request.contact.email) {
+          <p class="email-warning">Bu müşterinin e-posta adresi bulunmuyor.</p>
+        }
+        <div class="field">
+          <label for="emailSubject">Konu</label>
+          <input id="emailSubject" type="text" formControlName="subject" />
+        </div>
+        <div class="field">
+          <label for="emailBody">Mesaj</label>
+          <textarea id="emailBody" rows="7" formControlName="message"></textarea>
+        </div>
+        <label class="check">
+          <input type="checkbox" formControlName="includeQuote" />
+          Kaydedilen tutarı mesaja dahil et
+        </label>
+        <label class="confirm-check">
+          <input type="checkbox" formControlName="confirmed" />
+          <span>
+            Alıcıyı ve içeriği kontrol ettim; bu e-postanın şimdi gönderilmesini onaylıyorum.
+          </span>
+        </label>
+        @if (emailMessage()) {
+          <p class="action-message" role="status">{{ emailMessage() }}</p>
+        }
+        <button
+          type="submit"
+          class="button primary"
+          [disabled]="sending() || !request.contact.email"
+        >
+          {{ sending() ? 'Gönderiliyor…' : 'Müşteriye e-posta gönder' }}
+        </button>
+        @if (request.customer_email_sent_at) {
+          <small class="last-sent">
+            Son gönderim: {{ request.customer_email_sent_at | date: 'dd.MM.yyyy HH:mm' }}
+          </small>
+        }
+      </form>
+    </aside>
+  </div>
+}

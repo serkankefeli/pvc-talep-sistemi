@@ -1,0 +1,79 @@
+<figure class="plan-shell">
+  <div class="plan-heading">
+    <span>ÜSTTEN BALKON PLANI</span>
+    <strong>{{ shapeLabel() }}</strong>
+    @if (selectable() && ready() && geometry().lines.length) {
+      <small class="plan-hint">Panel dağılımını görmek için bir cepheye tıklayın.</small>
+    }
+  </div>
+  <div
+    class="plan-canvas"
+    [attr.role]="selectable() ? 'group' : 'img'"
+    [attr.aria-label]="ariaLabel()"
+  >
+    <span class="wall wall-top" aria-hidden="true"></span>
+    <span class="wall wall-side" aria-hidden="true"></span>
+    @if (ready() && geometry().lines.length) {
+      @for (line of geometry().lines; track $index) {
+        @if (selectable()) {
+          <button
+            type="button"
+            class="plan-line plan-line-button"
+            [class.is-selected]="$index === selectedIndex()"
+            [style.left.%]="line.xPercent"
+            [style.top.%]="line.yPercent"
+            [style.width.%]="line.lengthPercent"
+            [style.transform]="lineTransform(line.angleDegrees)"
+            [attr.aria-label]="segmentAriaLabel($index)"
+            [attr.aria-pressed]="$index === selectedIndex()"
+            (click)="selectSegment($index)"
+          >
+            <i aria-hidden="true">{{ line.label.charAt(0) }}</i>
+          </button>
+        } @else {
+          <span
+            class="plan-line"
+            [style.left.%]="line.xPercent"
+            [style.top.%]="line.yPercent"
+            [style.width.%]="line.lengthPercent"
+            [style.transform]="lineTransform(line.angleDegrees)"
+          >
+            <i>{{ line.label.charAt(0) }}</i>
+          </span>
+        }
+      }
+    } @else {
+      <div class="plan-empty">
+        <strong>Plan ölçülerinizi bekliyor</strong>
+        <small>Cephe uzunlukları girildikçe üstten görünüm oluşur.</small>
+      </div>
+    }
+  </div>
+  @if (ready() && geometry().lines.length) {
+    <ul class="plan-measures">
+      @for (line of geometry().lines; track $index) {
+        <li [class.is-selected]="selectable() && $index === selectedIndex()">
+          @if (selectable()) {
+            <button
+              type="button"
+              class="measure-button"
+              [attr.aria-label]="segmentAriaLabel($index)"
+              [attr.aria-pressed]="$index === selectedIndex()"
+              (click)="selectSegment($index)"
+            >
+              <span>{{ line.label }}</span>
+              <strong>{{ line.widthMm }} mm</strong>
+            </button>
+          } @else {
+            <span>{{ line.label }}</span>
+            <strong>{{ line.widthMm }} mm</strong>
+          }
+        </li>
+      }
+      <li class="plan-total">
+        <span>Toplam açık cephe</span>
+        <strong>{{ geometry().totalWidthMm }} mm</strong>
+      </li>
+    </ul>
+  }
+</figure>

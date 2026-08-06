@@ -1,0 +1,486 @@
+<nav class="breadcrumbs" aria-label="Sayfa yolu">
+  <ol>
+    <li>Yönetim</li>
+    <li aria-current="page">Talep merkezi</li>
+  </ol>
+</nav>
+
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">TALEP YÖNETİMİ</p>
+    <h2>Talep merkezi</h2>
+    <p>Müşteri taleplerini bulun, karşılaştırın ve çizimleri ayrılmadan inceleyin.</p>
+  </div>
+  <div class="result-summary" aria-live="polite">
+    <strong>{{ total() }}</strong>
+    <span>{{ scope() === 'favorites' ? 'favori talep' : 'toplam talep' }}</span>
+  </div>
+</header>
+
+<div class="request-workspace">
+  <aside class="request-navigation" aria-label="Talep görünümleri">
+    <div class="navigation-group">
+      <p class="navigation-title">Görünümler</p>
+      <button
+        type="button"
+        class="navigation-button"
+        [class.active]="scope() === 'all'"
+        [attr.aria-pressed]="scope() === 'all'"
+        (click)="setScope('all')"
+      >
+        <span class="navigation-mark" aria-hidden="true">T</span>
+        <span>
+          <strong>Tüm talepler</strong>
+          <small>Eksiksiz kayıt listesi</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        class="navigation-button"
+        [class.active]="scope() === 'favorites'"
+        [attr.aria-pressed]="scope() === 'favorites'"
+        (click)="setScope('favorites')"
+      >
+        <span class="navigation-mark star-mark" aria-hidden="true">★</span>
+        <span>
+          <strong>Favoriler</strong>
+          <small>Öncelikli çalışmalar</small>
+        </span>
+      </button>
+    </div>
+
+    <div class="navigation-group recent-group">
+      <div class="navigation-title-row">
+        <p class="navigation-title">Son görüntülenen</p>
+        <span>{{ recentRequests().length }}</span>
+      </div>
+      @if (recentRequests().length) {
+        <ul class="recent-list">
+          @for (request of recentRequests(); track request.id) {
+            <li>
+              <button
+                type="button"
+                [class.active]="selectedId() === request.id"
+                (click)="selectRecent(request)"
+              >
+                <span aria-hidden="true">↗</span>
+                {{ request.requestNumber }}
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="recent-empty">İncelediğiniz talepler burada görünür.</p>
+      }
+    </div>
+  </aside>
+
+  <main class="request-results" aria-labelledby="request-results-title">
+    <h3 id="request-results-title" class="visually-hidden">Talep sonuçları</h3>
+
+    <div class="toolbar">
+      <div class="search-field">
+        <label class="visually-hidden" for="requestSearch">Talep ara</label>
+        <span aria-hidden="true">⌕</span>
+        <input
+          id="requestSearch"
+          type="search"
+          autocomplete="off"
+          placeholder="Talep no, müşteri, firma, telefon…"
+          [formControl]="searchControl"
+        />
+      </div>
+
+      <div class="compact-field">
+        <label for="statusFilter">Durum</label>
+        <select id="statusFilter" [formControl]="statusFilter">
+          <option value="">Tüm durumlar</option>
+          @for (entry of statusEntries; track entry[0]) {
+            <option [value]="entry[0]">{{ entry[1] }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="compact-field sort-field">
+        <label for="requestSort">Sıralama</label>
+        <select id="requestSort" [formControl]="sortControl">
+          <option value="created_at:desc">En yeni</option>
+          <option value="created_at:asc">En eski</option>
+          <option value="updated_at:desc">Son güncellenen</option>
+          <option value="customer_name:asc">Müşteri A–Z</option>
+          <option value="status:asc">Duruma göre</option>
+        </select>
+      </div>
+
+      <div class="view-switch" role="group" aria-label="Sonuç görünümü">
+        <button
+          type="button"
+          [class.active]="viewMode() === 'table'"
+          [attr.aria-pressed]="viewMode() === 'table'"
+          (click)="setViewMode('table')"
+        >
+          Liste
+        </button>
+        <button
+          type="button"
+          [class.active]="viewMode() === 'cards'"
+          [attr.aria-pressed]="viewMode() === 'cards'"
+          (click)="setViewMode('cards')"
+        >
+          Kart
+        </button>
+      </div>
+
+      <details class="columns-menu">
+        <summary>Sütunlar</summary>
+        <div class="columns-popover">
+          <p>Listede gösterilecek bilgiler</p>
+          @for (column of columnOptions; track column.key) {
+            <label>
+              <input
+                type="checkbox"
+                [checked]="isColumnVisible(column.key)"
+                (change)="toggleColumn(column.key, $any($event.target).checked)"
+              />
+              {{ column.label }}
+            </label>
+          }
+          <small>Teklif tutarı başlangıçta gizlidir.</small>
+        </div>
+      </details>
+    </div>
+
+    @if (searchControl.value.trim().length === 1) {
+      <p class="search-hint">Arama için en az 2 karakter yazın.</p>
+    }
+    @if (actionMessage()) {
+      <p class="action-message" role="status">{{ actionMessage() }}</p>
+    }
+
+    @if (loading()) {
+      <div class="state-card" role="status">
+        <span class="loading-dot" aria-hidden="true"></span>
+        Talepler yükleniyor…
+      </div>
+    } @else if (error()) {
+      <div class="state-card error-state" role="alert">
+        <p>{{ error() }}</p>
+        <button type="button" class="button secondary" (click)="load()">Yeniden dene</button>
+      </div>
+    } @else if (requests().length === 0) {
+      <div class="state-card empty-state">
+        <span aria-hidden="true">⌕</span>
+        <h3>{{ scope() === 'favorites' ? 'Henüz favori talep yok' : 'Sonuç bulunamadı' }}</h3>
+        <p>
+          {{
+            scope() === 'favorites'
+              ? 'Öncelikli talepleri yıldız düğmesiyle bu görünüme ekleyebilirsiniz.'
+              : 'Arama metnini veya durum filtresini değiştirerek yeniden deneyin.'
+          }}
+        </p>
+        <button type="button" class="button secondary" (click)="clearFilters()">
+          Filtreleri temizle
+        </button>
+      </div>
+    } @else {
+      @if (viewMode() === 'table') {
+        <div class="table-shell">
+          <table aria-label="Talep sonuçları">
+            <thead>
+              <tr>
+                <th>Talep</th>
+                @if (isColumnVisible('customer')) {
+                  <th>Müşteri</th>
+                }
+                @if (isColumnVisible('product')) {
+                  <th>Ürün</th>
+                }
+                @if (isColumnVisible('status')) {
+                  <th>Durum</th>
+                }
+                @if (isColumnVisible('amount')) {
+                  <th>Tutar</th>
+                }
+                @if (isColumnVisible('created')) {
+                  <th>Tarih</th>
+                }
+                <th><span class="visually-hidden">İşlemler</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (request of requests(); track request.id) {
+                <tr [class.selected]="selectedId() === request.id">
+                  <td>
+                    <button
+                      type="button"
+                      class="request-number"
+                      [attr.aria-pressed]="selectedId() === request.id"
+                      (click)="selectRequest(request)"
+                    >
+                      <span class="request-type-mark" aria-hidden="true">P</span>
+                      <span>
+                        <strong>{{ request.request_number }}</strong>
+                        <small>{{ request.updated_at | date: 'dd.MM.yyyy HH:mm' }} güncellendi</small>
+                      </span>
+                    </button>
+                  </td>
+                  @if (isColumnVisible('customer')) {
+                    <td>
+                      <strong>{{ request.customer_name }}</strong>
+                      <small>{{
+                        request.company_name || request.customer_phone || request.customer_email || '—'
+                      }}</small>
+                    </td>
+                  }
+                  @if (isColumnVisible('product')) {
+                    <td>{{ request.product_count }} kalem</td>
+                  }
+                  @if (isColumnVisible('status')) {
+                    <td>
+                      <span class="status" [attr.data-status]="request.status">
+                        {{ statusLabels[request.status] }}
+                      </span>
+                    </td>
+                  }
+                  @if (isColumnVisible('amount')) {
+                    <td>
+                      @if (request.quoted_amount !== null) {
+                        {{ request.quoted_amount | number: '1.2-2' }} ₺
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                  }
+                  @if (isColumnVisible('created')) {
+                    <td>{{ request.created_at | date: 'dd.MM.yyyy HH:mm' }}</td>
+                  }
+                  <td>
+                    <div class="row-actions">
+                      <button
+                        type="button"
+                        class="favorite-button"
+                        [class.active]="request.favorite"
+                        [disabled]="isFavoriteSaving(request.id)"
+                        [attr.aria-label]="
+                          request.favorite ? 'Favorilerden çıkar' : 'Favorilere ekle'
+                        "
+                        (click)="toggleFavorite(request, $event)"
+                      >
+                        {{ request.favorite ? '★' : '☆' }}
+                      </button>
+                      <a
+                        class="open-link"
+                        [routerLink]="['/admin/talepler', request.id]"
+                        (click)="rememberFromLink(request)"
+                      >
+                        Aç
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="request-card-grid" aria-label="Talep kartları">
+          @for (request of requests(); track request.id) {
+            <article class="request-card" [class.selected]="selectedId() === request.id">
+              <header>
+                <button type="button" class="card-select" (click)="selectRequest(request)">
+                  <span class="request-type-mark" aria-hidden="true">P</span>
+                  <span>
+                    <strong>{{ request.request_number }}</strong>
+                    <small>{{ request.created_at | date: 'dd.MM.yyyy HH:mm' }}</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="favorite-button"
+                  [class.active]="request.favorite"
+                  [disabled]="isFavoriteSaving(request.id)"
+                  [attr.aria-label]="request.favorite ? 'Favorilerden çıkar' : 'Favorilere ekle'"
+                  (click)="toggleFavorite(request, $event)"
+                >
+                  {{ request.favorite ? '★' : '☆' }}
+                </button>
+              </header>
+              <div class="card-customer">
+                <strong>{{ request.customer_name }}</strong>
+                <span>{{ request.company_name || request.customer_phone || 'Bireysel müşteri' }}</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>Ürün</dt>
+                  <dd>{{ request.product_count }} kalem</dd>
+                </div>
+                <div>
+                  <dt>Durum</dt>
+                  <dd>
+                    <span class="status" [attr.data-status]="request.status">
+                      {{ statusLabels[request.status] }}
+                    </span>
+                  </dd>
+                </div>
+                @if (isColumnVisible('amount')) {
+                  <div>
+                    <dt>Tutar</dt>
+                    <dd>
+                      @if (request.quoted_amount !== null) {
+                        {{ request.quoted_amount | number: '1.2-2' }} ₺
+                      } @else {
+                        —
+                      }
+                    </dd>
+                  </div>
+                }
+              </dl>
+              <footer>
+                <button type="button" class="preview-link" (click)="selectRequest(request)">
+                  Hızlı incele
+                </button>
+                <a
+                  [routerLink]="['/admin/talepler', request.id]"
+                  (click)="rememberFromLink(request)"
+                >
+                  Tam detayı aç
+                </a>
+              </footer>
+            </article>
+          }
+        </div>
+      }
+
+      <nav class="pagination" aria-label="Talep sayfaları">
+        <p>{{ pageStart() }}–{{ pageEnd() }} / {{ total() }} kayıt</p>
+        <div>
+          <button
+            type="button"
+            class="page-button"
+            [disabled]="currentPage() === 1"
+            (click)="previousPage()"
+          >
+            ← Önceki
+          </button>
+          <span aria-current="page">{{ currentPage() }} / {{ pageCount() }}</span>
+          <button
+            type="button"
+            class="page-button"
+            [disabled]="currentPage() === pageCount()"
+            (click)="nextPage()"
+          >
+            Sonraki →
+          </button>
+        </div>
+      </nav>
+    }
+  </main>
+
+  <aside class="quick-detail" aria-labelledby="quick-detail-title">
+    @if (detailLoading()) {
+      <div class="quick-state" role="status">
+        <span class="loading-dot" aria-hidden="true"></span>
+        Önizleme hazırlanıyor…
+      </div>
+    } @else if (detailError()) {
+      <div class="quick-state error-state" role="alert">
+        <p>{{ detailError() }}</p>
+        @if (selectedId()) {
+          <button type="button" class="button secondary" (click)="retryDetail()">
+            Yeniden dene
+          </button>
+        }
+      </div>
+    } @else if (selectedDetail(); as request) {
+      <header class="quick-detail-heading">
+        <div>
+          <p class="eyebrow">SEÇİLİ TALEP</p>
+          <h3 id="quick-detail-title">{{ request.request_number }}</h3>
+          <p>{{ request.contact.full_name }}</p>
+        </div>
+        <button
+          type="button"
+          class="favorite-button large"
+          [class.active]="request.favorite"
+          [disabled]="isFavoriteSaving(request.id)"
+          [attr.aria-label]="request.favorite ? 'Favorilerden çıkar' : 'Favorilere ekle'"
+          (click)="toggleFavorite(request, $event)"
+        >
+          {{ request.favorite ? '★' : '☆' }}
+        </button>
+      </header>
+
+      <div class="current-status">
+        <span class="status" [attr.data-status]="request.status">
+          {{ statusLabels[request.status] }}
+        </span>
+        <small>{{ request.updated_at | date: 'dd.MM.yyyy HH:mm' }} güncellendi</small>
+      </div>
+
+      <ol class="status-track" aria-label="Talep durumu">
+        @for (step of statusSteps; track step.key) {
+          <li [attr.data-state]="statusStepState(request.status, step.key)">
+            <span aria-hidden="true"></span>
+            <small>{{ step.label }}</small>
+          </li>
+        }
+      </ol>
+      @if (request.status === 'lost' || request.status === 'cancelled') {
+        <p class="terminal-status">Bu talep {{ statusLabels[request.status].toLocaleLowerCase('tr-TR') }}.</p>
+      }
+
+      <section class="quick-contact" aria-label="Müşteri iletişimi">
+        @if (request.contact.company_name) {
+          <p><span>Firma</span><strong>{{ request.contact.company_name }}</strong></p>
+        }
+        @if (request.contact.phone) {
+          <p><span>Telefon</span><a [href]="'tel:' + request.contact.phone">{{ request.contact.phone }}</a></p>
+        }
+        @if (request.contact.email) {
+          <p><span>E-posta</span><a [href]="'mailto:' + request.contact.email">{{ request.contact.email }}</a></p>
+        }
+      </section>
+
+      <section class="position-section" aria-labelledby="position-title">
+        <div class="position-heading">
+          <div>
+            <p class="eyebrow">POZİSYONLAR</p>
+            <h4 id="position-title">{{ request.items.length }} ürün çizimi</h4>
+          </div>
+        </div>
+        <div class="position-tabs" role="tablist" aria-label="Ürün çizimleri">
+          @for (item of request.items; track $index) {
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="selectedItemIndex() === $index"
+              [class.active]="selectedItemIndex() === $index"
+              (click)="selectItem($index)"
+            >
+              <span>{{ $index + 1 }}</span>
+              {{ productLabel(item.product_type) }}
+            </button>
+          }
+        </div>
+        @if (selectedItem(); as item) {
+          <div class="drawing-card" role="tabpanel">
+            <app-product-preview [item]="item" />
+          </div>
+        }
+      </section>
+
+      <a
+        class="button primary full-detail-link"
+        [routerLink]="['/admin/talepler', request.id]"
+      >
+        Talebin tam detayını aç
+      </a>
+    } @else {
+      <div class="quick-state empty-detail">
+        <span aria-hidden="true">↖</span>
+        <h3 id="quick-detail-title">Bir talep seçin</h3>
+        <p>Ölçüleri ve ürün çizimini burada, listeden ayrılmadan inceleyebilirsiniz.</p>
+      </div>
+    }
+  </aside>
+</div>

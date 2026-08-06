@@ -1,0 +1,114 @@
+<section class="branding-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">MARKA YÖNETİMİ</p>
+      <h1>Logo ve site kimliği</h1>
+      <p>Buradaki değişiklikler müşteri ekranı ve yönetim alanında birlikte yayınlanır.</p>
+    </div>
+    <span class="dynamic-note">Kod değişikliği gerekmez</span>
+  </header>
+
+  @if (loading()) {
+    <p class="state-card">Marka bilgileri yükleniyor…</p>
+  } @else {
+    <div class="branding-grid">
+      <article class="preview-card">
+        <div class="card-heading">
+          <p class="eyebrow">CANLI ÖNİZLEME</p>
+          <h2>Başlık görünümü</h2>
+        </div>
+        <div class="brand-preview">
+          @if (branding().logo_url) {
+            <span class="logo-frame">
+              <img [src]="branding().logo_url" [alt]="branding().logo_alt" />
+            </span>
+          } @else {
+            <span class="brand-mark" aria-hidden="true">{{ brandMark() }}</span>
+          }
+          <span>
+            <strong>{{ branding().brand_name }}</strong>
+            @if (branding().tagline) {
+              <small>{{ branding().tagline }}</small>
+            }
+          </span>
+        </div>
+        <p class="preview-help">
+          Logo yoksa marka adının ilk harfi otomatik işaret olarak gösterilir.
+        </p>
+      </article>
+
+      <article class="form-card">
+        <div class="card-heading">
+          <p class="eyebrow">MARKA METİNLERİ</p>
+          <h2>Site adını düzenle</h2>
+        </div>
+        <form [formGroup]="form" (ngSubmit)="saveText()">
+          <div class="field">
+            <label for="brand-name">Site / marka adı</label>
+            <input id="brand-name" type="text" formControlName="brand_name" maxlength="120" />
+          </div>
+          <div class="field">
+            <label for="tagline">Kısa açıklama</label>
+            <input id="tagline" type="text" formControlName="tagline" maxlength="200" />
+          </div>
+          <div class="field">
+            <label for="logo-alt">Logo açıklaması</label>
+            <input id="logo-alt" type="text" formControlName="logo_alt" maxlength="160" />
+            <small>Ekran okuyucular için logoyu kısa ve açık biçimde tanımlayın.</small>
+          </div>
+          <button class="button primary" type="submit" [disabled]="busy() || form.invalid">
+            Marka metinlerini kaydet
+          </button>
+        </form>
+      </article>
+
+      <article class="upload-card">
+        <div class="card-heading">
+          <p class="eyebrow">LOGO DOSYASI</p>
+          <h2>Yeni logo yükle</h2>
+        </div>
+        <div class="upload-zone">
+          <label for="logo-file">PNG, JPG/JPEG veya WebP</label>
+          <input
+            id="logo-file"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            (change)="selectLogo($event)"
+          />
+          <small>En fazla 2 MB. SVG güvenlik nedeniyle kabul edilmez.</small>
+        </div>
+        @if (selectedFile(); as file) {
+          <p class="selected-file">
+            <strong>{{ file.name }}</strong>
+            <span>{{ (file.size / 1024).toFixed(0) }} KB</span>
+          </p>
+        }
+        <div class="upload-actions">
+          <button
+            class="button primary"
+            type="button"
+            [disabled]="busy() || !selectedFile()"
+            (click)="uploadLogo()"
+          >
+            Seçilen logoyu yükle
+          </button>
+          <button
+            class="button danger"
+            type="button"
+            [disabled]="busy() || !branding().logo_url"
+            (click)="removeLogo()"
+          >
+            Mevcut logoyu kaldır
+          </button>
+        </div>
+      </article>
+    </div>
+  }
+
+  @if (message()) {
+    <p class="feedback success" role="status">{{ message() }}</p>
+  }
+  @if (error()) {
+    <p class="feedback error" role="alert">{{ error() }}</p>
+  }
+</section>

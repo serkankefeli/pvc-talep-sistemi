@@ -1,0 +1,299 @@
+<figure class="scene-shell">
+  <div
+    class="scene-canvas"
+    role="img"
+    [attr.aria-label]="ariaLabel()"
+    [class.scene-window]="geometry().kind === 'window'"
+    [class.scene-door]="geometry().kind === 'door'"
+    [class.scene-balcony]="geometry().kind === 'balcony'"
+    [class.scene-facade]="geometry().kind === 'facade'"
+    [style.--opening-width]="geometry().openingWidthPercent + '%'"
+    [style.--opening-height]="geometry().openingHeightPercent + '%'"
+    [style.--opening-bottom]="geometry().anchorBottomPercent + '%'"
+    [style.--frame-color]="frameFill()"
+  >
+    <div class="room-light" aria-hidden="true"></div>
+    <div class="floor" aria-hidden="true"></div>
+    <div class="skirting" aria-hidden="true"></div>
+    <div class="balcony-rail" aria-hidden="true"></div>
+
+    <div class="mounting-opening" aria-hidden="true">
+      <div class="opening-view">
+        <span class="distant-building building-one"></span>
+        <span class="distant-building building-two"></span>
+        <span class="distant-building building-three"></span>
+      </div>
+
+      @if (geometry().ready) {
+        <div
+          class="installed-unit"
+          data-testid="installed-unit"
+          [class.mesh-unit]="isMesh()"
+          [class.facade-unit]="isFacade()"
+          [class.horizontal-panels]="isHorizontalPanels()"
+          [class.balcony-profile-unit]="balconyGeometry()"
+          [style.--panel-count]="panelIndexes().length"
+        >
+          @if (joineryGeometry(); as joinery) {
+            <svg
+              class="joinery-drawing"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              data-testid="joinery-drawing"
+            >
+              @for (panel of joinery.panels; track panel.panel.slot) {
+                <g
+                  [attr.data-panel-slot]="panel.panel.slot"
+                  [attr.data-panel-role]="panel.panel.role"
+                  [attr.data-panel-opening]="panel.panel.opening"
+                >
+                  <rect
+                    class="joinery-panel-frame"
+                    [attr.x]="panel.frame.x"
+                    [attr.y]="panel.frame.y"
+                    [attr.width]="panel.frame.width"
+                    [attr.height]="panel.frame.height"
+                    [attr.fill]="frameFill()"
+                  />
+                  <rect
+                    class="joinery-glass"
+                    [attr.data-surface]="joinerySurface()"
+                    [attr.x]="panel.glass.x"
+                    [attr.y]="panel.glass.y"
+                    [attr.width]="panel.glass.width"
+                    [attr.height]="panel.glass.height"
+                  />
+                </g>
+              }
+
+              @for (record of joinery.records; track $index) {
+                <rect
+                  class="joinery-record"
+                  [attr.data-record-axis]="record.axis"
+                  [attr.x]="record.x"
+                  [attr.y]="record.y"
+                  [attr.width]="record.width"
+                  [attr.height]="record.height"
+                  [attr.fill]="frameFill()"
+                />
+              }
+
+              @for (panel of joinery.panels; track panel.panel.slot) {
+                @for (marker of panel.markers; track $index) {
+                  <line
+                    class="joinery-marker"
+                    [class.fixed-marker]="marker.kind === 'fixed'"
+                    [class.tilt-marker]="marker.kind === 'tilt'"
+                    [class.sliding-marker]="marker.kind === 'sliding'"
+                    [attr.data-marker-kind]="marker.kind"
+                    [attr.x1]="marker.x1"
+                    [attr.y1]="marker.y1"
+                    [attr.x2]="marker.x2"
+                    [attr.y2]="marker.y2"
+                  />
+                }
+                @if (panel.handle; as handle) {
+                  <line
+                    class="joinery-handle"
+                    [attr.data-handle-role]="panel.panel.role"
+                    [attr.x1]="handle.x1"
+                    [attr.y1]="handle.y1"
+                    [attr.x2]="handle.x2"
+                    [attr.y2]="handle.y2"
+                  />
+                }
+              }
+            </svg>
+          } @else if (balconyGeometry(); as balcony) {
+            <div
+              class="balcony-profile-drawing"
+              data-testid="balcony-profile-drawing"
+              [class.is-guillotine]="balcony.orientation === 'horizontal'"
+              [attr.data-orientation]="balcony.orientation"
+              [attr.data-segment-index]="balcony.segmentIndex"
+            >
+              @if (balcony.orientation === 'vertical') {
+                @for (cell of balcony.cells; track cell.id) {
+                  @if (cell.kind === 'glass') {
+                    <span
+                      class="balcony-cell balcony-glass"
+                      [style.left.%]="cell.startPercent"
+                      [style.width.%]="cell.widthPercent"
+                      [style.top.%]="balcony.glassTopPercent"
+                      [style.height.%]="balcony.glassHeightPercent"
+                      [attr.data-panel-index]="cell.panelIndex"
+                      [attr.data-width-mm]="cell.widthMm"
+                    ></span>
+                  } @else if (cell.kind === 'mounting-gap') {
+                    <span
+                      class="balcony-cell balcony-mounting-gap"
+                      [style.left.%]="cell.startPercent"
+                      [style.width.%]="cell.widthPercent"
+                      [attr.data-width-mm]="cell.widthMm"
+                    ></span>
+                  } @else {
+                    <span
+                      class="balcony-cell balcony-profile"
+                      [class.balcony-mullion]="cell.kind === 'mullion-profile'"
+                      [class.balcony-corner-profile]="cell.kind === 'corner-profile'"
+                      [style.left.%]="cell.startPercent"
+                      [style.width.%]="cell.widthPercent"
+                      [style.top.%]="balcony.verticalSystemTopPercent"
+                      [style.height.%]="balcony.verticalSystemHeightPercent"
+                      [attr.data-profile-kind]="cell.kind"
+                      [attr.data-width-mm]="cell.widthMm"
+                    ></span>
+                  }
+                }
+                <span
+                  class="balcony-horizontal-profile balcony-top-profile"
+                  [style.left.%]="balcony.horizontalSystemLeftPercent"
+                  [style.width.%]="balcony.horizontalSystemWidthPercent"
+                  [style.top.%]="balcony.topProfileTopPercent"
+                  [style.height.%]="balcony.topProfileHeightPercent"
+                  [attr.data-height-mm]="balcony.topProfileMm"
+                ></span>
+                <span
+                  class="balcony-horizontal-profile balcony-bottom-profile"
+                  [style.left.%]="balcony.horizontalSystemLeftPercent"
+                  [style.width.%]="balcony.horizontalSystemWidthPercent"
+                  [style.top.%]="balcony.bottomProfileTopPercent"
+                  [style.height.%]="balcony.bottomProfileHeightPercent"
+                  [attr.data-height-mm]="balcony.bottomProfileMm"
+                ></span>
+                <span
+                  class="balcony-vertical-mounting-gap balcony-mounting-top"
+                  [style.height.%]="balcony.verticalSystemTopPercent"
+                ></span>
+                <span
+                  class="balcony-vertical-mounting-gap balcony-mounting-bottom"
+                  [style.height.%]="
+                    100 - balcony.verticalSystemTopPercent - balcony.verticalSystemHeightPercent
+                  "
+                ></span>
+              } @else {
+                @for (cell of balcony.cells; track cell.id) {
+                  @if (cell.kind === 'glass') {
+                    <span
+                      class="balcony-cell balcony-glass guillotine-glass"
+                      [style.left.%]="balcony.glassLeftPercent"
+                      [style.width.%]="balcony.glassWidthPercent"
+                      [style.top.%]="cell.startPercent"
+                      [style.height.%]="cell.widthPercent"
+                      [attr.data-panel-index]="cell.panelIndex"
+                      [attr.data-height-mm]="cell.widthMm"
+                    ></span>
+                  } @else if (cell.kind === 'mounting-gap') {
+                    <span
+                      class="balcony-cell balcony-horizontal-mounting-gap"
+                      [style.top.%]="cell.startPercent"
+                      [style.height.%]="cell.widthPercent"
+                      [attr.data-height-mm]="cell.widthMm"
+                    ></span>
+                  } @else {
+                    <span
+                      class="balcony-horizontal-profile"
+                      [class.balcony-mullion]="cell.kind === 'mullion-profile'"
+                      [style.left.%]="balcony.horizontalSystemLeftPercent"
+                      [style.width.%]="balcony.horizontalSystemWidthPercent"
+                      [style.top.%]="cell.startPercent"
+                      [style.height.%]="cell.widthPercent"
+                      [attr.data-profile-kind]="cell.kind"
+                      [attr.data-height-mm]="cell.widthMm"
+                    ></span>
+                  }
+                }
+                <span
+                  class="balcony-profile balcony-side-profile"
+                  [class.balcony-corner-profile]="balcony.startRole === 'corner'"
+                  [style.left.%]="(balcony.startMountingGapMm / balcony.segmentWidthMm) * 100"
+                  [style.width.%]="(balcony.startProfileWidthMm / balcony.segmentWidthMm) * 100"
+                  [style.top.%]="balcony.verticalSystemTopPercent"
+                  [style.height.%]="balcony.verticalSystemHeightPercent"
+                  data-profile-side="start"
+                  [attr.data-width-mm]="balcony.startProfileWidthMm"
+                ></span>
+                <span
+                  class="balcony-profile balcony-side-profile"
+                  [class.balcony-corner-profile]="balcony.endRole === 'corner'"
+                  [style.left.%]="
+                    ((balcony.segmentWidthMm -
+                      balcony.endMountingGapMm -
+                      balcony.endProfileWidthMm) /
+                      balcony.segmentWidthMm) *
+                    100
+                  "
+                  [style.width.%]="(balcony.endProfileWidthMm / balcony.segmentWidthMm) * 100"
+                  [style.top.%]="balcony.verticalSystemTopPercent"
+                  [style.height.%]="balcony.verticalSystemHeightPercent"
+                  data-profile-side="end"
+                  [attr.data-width-mm]="balcony.endProfileWidthMm"
+                ></span>
+                <span
+                  class="balcony-mounting-gap balcony-side-mounting-gap"
+                  [style.left.%]="0"
+                  [style.width.%]="(balcony.startMountingGapMm / balcony.segmentWidthMm) * 100"
+                ></span>
+                <span
+                  class="balcony-mounting-gap balcony-side-mounting-gap"
+                  [style.left.%]="
+                    ((balcony.segmentWidthMm - balcony.endMountingGapMm) / balcony.segmentWidthMm) *
+                    100
+                  "
+                  [style.width.%]="(balcony.endMountingGapMm / balcony.segmentWidthMm) * 100"
+                ></span>
+              }
+            </div>
+          } @else {
+            <div class="pane-grid">
+              @for (panel of panelIndexes(); track panel) {
+                <span class="pane"></span>
+              }
+            </div>
+          }
+        </div>
+        <span class="dimension-tag dimension-width">{{ item().width_mm }} mm</span>
+        <span class="dimension-tag dimension-height">{{ item().height_mm }} mm</span>
+      }
+    </div>
+
+    @if (!geometry().ready) {
+      <div class="empty-scene-badge">
+        <span>BAŞLANGIÇ GÖRÜNÜMÜ</span>
+        <strong>{{ emptyLabel() }}</strong>
+      </div>
+    }
+  </div>
+
+  <figcaption>
+    @if (geometry().ready) {
+      <span class="scene-state ready">ÖLÇÜYE GÖRE YERLEŞTİ</span>
+      <strong>{{ productLabel() }}</strong>
+      <small>
+        {{ item().width_mm }} × {{ item().height_mm }} mm · Görsel ölçek referansı
+        {{ geometry().standardWidthMm }} × {{ geometry().standardHeightMm }} mm
+      </small>
+      @if (joinerySummary()) {
+        <small class="joinery-summary">{{ joinerySummary() }}</small>
+      }
+      @if (balconyGeometry(); as balcony) {
+        <small class="balcony-equation" data-testid="balcony-width-equation">
+          {{ balconyWidthSummary() }}
+        </small>
+        <small class="balcony-height-equation">{{ balconyHeightSummary() }}</small>
+        @if (!balcony.withinGlassLimits) {
+          <small class="balcony-layout-warning">
+            Bu ölçü profil sınırlarının dışında; kesin panel dağılımını uzmanımız kontrol edecek.
+          </small>
+        }
+      }
+    } @else {
+      <span class="scene-state">ÖNCE ÖLÇÜLER</span>
+      <strong>Genişlik ve yüksekliği girin</strong>
+      <small>
+        Ürün, {{ geometry().standardWidthMm }} × {{ geometry().standardHeightMm }} mm görsel
+        referansına göre bu alana yerleşecek.
+      </small>
+    }
+  </figcaption>
+</figure>

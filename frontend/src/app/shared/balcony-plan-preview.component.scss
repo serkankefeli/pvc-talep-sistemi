@@ -1,0 +1,245 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.plan-shell {
+  background: #fff;
+  border: 1px solid #d6dfda;
+  border-radius: 0.9rem;
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+.plan-heading {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  justify-content: space-between;
+  padding: 0.7rem 0.85rem;
+}
+
+.plan-heading span {
+  color: var(--forest);
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.plan-heading strong {
+  font-size: 0.72rem;
+}
+
+.plan-hint {
+  color: var(--muted);
+  flex-basis: 100%;
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+
+.plan-canvas {
+  aspect-ratio: 100 / 62;
+  background:
+    linear-gradient(90deg, rgb(58 99 88 / 0.055) 1px, transparent 1px) 0 0 / 1.25rem 1.25rem,
+    linear-gradient(rgb(58 99 88 / 0.055) 1px, transparent 1px) 0 0 / 1.25rem 1.25rem,
+    #f7faf8;
+  min-height: 10rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.wall {
+  background: #d9d4ca;
+  box-shadow: 0 0 0 1px #aaa398;
+  opacity: 0.6;
+  position: absolute;
+}
+
+.wall-top {
+  height: 0.42rem;
+  inset: 8% 8% auto;
+}
+
+.wall-side {
+  bottom: 8%;
+  left: 8%;
+  top: 8%;
+  width: 0.42rem;
+}
+
+.plan-line {
+  appearance: none;
+  background: #2d7468;
+  border: 0;
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 0.22rem #dcece7,
+    0 0.35rem 0.8rem rgb(18 60 50 / 0.18);
+  height: 0.5rem;
+  position: absolute;
+  transform-origin: left center;
+}
+
+.plan-line-button {
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.plan-line-button:hover {
+  background: #215c52;
+  box-shadow:
+    0 0 0 0.28rem #cce2dc,
+    0 0.45rem 0.9rem rgb(18 60 50 / 0.24);
+}
+
+.plan-line-button:focus-visible {
+  outline: 0.2rem solid #f0a53a;
+  outline-offset: 0.35rem;
+  z-index: 3;
+}
+
+.plan-line.is-selected {
+  background: #c47a16;
+  box-shadow:
+    0 0 0 0.3rem #ffedc8,
+    0 0.45rem 0.9rem rgb(122 70 7 / 0.25);
+  z-index: 2;
+}
+
+.plan-line::before,
+.plan-line::after {
+  background: #173f36;
+  border-radius: 50%;
+  content: '';
+  height: 0.72rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.72rem;
+}
+
+.plan-line::before {
+  left: -0.18rem;
+}
+
+.plan-line::after {
+  right: -0.18rem;
+}
+
+.plan-line.is-selected::before,
+.plan-line.is-selected::after,
+.plan-line.is-selected i {
+  background: #8a5108;
+}
+
+.plan-line i {
+  align-items: center;
+  background: #173f36;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 900;
+  height: 1.25rem;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.25rem;
+}
+
+.plan-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: absolute;
+  text-align: center;
+}
+
+.plan-empty strong {
+  color: var(--forest);
+  font-size: 0.8rem;
+}
+
+.plan-empty small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  margin-top: 0.3rem;
+}
+
+.plan-measures {
+  display: grid;
+  gap: 0.35rem;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0.7rem;
+}
+
+.plan-measures li {
+  background: #f4f7f5;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  display: flex;
+  font-size: 0.65rem;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.45rem 0.55rem;
+}
+
+.plan-measures li.is-selected {
+  background: #fff7e7;
+  border-color: #e2a54d;
+  color: #754306;
+}
+
+.measure-button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin: -0.45rem -0.55rem;
+  padding: 0.55rem;
+  text-align: left;
+  width: calc(100% + 1.1rem);
+}
+
+.measure-button:hover span,
+.measure-button:hover strong {
+  color: var(--forest);
+}
+
+.measure-button:focus-visible {
+  border-radius: 0.4rem;
+  outline: 0.15rem solid #f0a53a;
+  outline-offset: -0.05rem;
+}
+
+.plan-measures span {
+  color: var(--muted-strong);
+}
+
+.plan-measures li.is-selected span {
+  color: #754306;
+  font-weight: 800;
+}
+
+.plan-total {
+  background: var(--forest-soft) !important;
+  color: var(--forest);
+}

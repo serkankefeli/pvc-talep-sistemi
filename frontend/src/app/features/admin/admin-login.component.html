@@ -1,0 +1,32 @@
+<section class="login-page">
+  <div class="login-card">
+    <div class="login-intro">
+      <p class="eyebrow">YETKİLİ ERİŞİMİ</p>
+      <h1>Talep yönetimine giriş</h1>
+      <p>Müşteri talepleri ve ticari bilgiler yalnızca yetkili oturumunda görüntülenir.</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label for="username">Kullanıcı adı</label>
+        <input id="username" type="text" autocomplete="username" formControlName="username" />
+      </div>
+      <div class="field">
+        <label for="password">Parola</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          formControlName="password"
+        />
+      </div>
+      @if (error()) {
+        <p class="login-error" role="alert">{{ error() }}</p>
+      }
+      <button type="submit" class="button primary" [disabled]="busy()">
+        {{ busy() ? 'Doğrulanıyor…' : 'Giriş yap' }}
+      </button>
+      <p class="session-note">Oturum bilgisi bu tarayıcıda kalıcı olarak saklanmaz.</p>
+    </form>
+  </div>
+</section>

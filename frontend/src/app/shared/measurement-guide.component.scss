@@ -1,0 +1,134 @@
+.measurement-card {
+  background: #f4f7f5;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.guide-heading {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.1rem;
+}
+
+.guide-heading h3 {
+  font-size: 1.12rem;
+  margin: 0.25rem 0 0;
+}
+
+.guide-heading > span {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--forest);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.38rem 0.55rem;
+}
+
+.guide-content {
+  align-items: center;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  padding: 1rem 1.1rem;
+}
+
+svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.wall {
+  fill: #e1ddd3;
+  stroke: #aca69a;
+  stroke-width: 2;
+}
+
+.opening {
+  fill: #d8e9e8;
+  stroke: #123c32;
+  stroke-width: 4;
+}
+
+.parapet {
+  fill: #c7c3b9;
+  stroke: #7e7a71;
+  stroke-width: 1.5;
+}
+
+.panel-line {
+  stroke: #567a72;
+  stroke-width: 2;
+}
+
+.measure-arrow {
+  marker-end: url(#measure-arrow);
+  marker-start: url(#measure-arrow);
+  stroke: #d36135;
+  stroke-width: 2.5;
+}
+
+.witness {
+  stroke: #9b5c42;
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+marker path {
+  fill: #d36135;
+}
+
+text {
+  fill: #324741;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+ol {
+  display: grid;
+  gap: 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  border-left: 3px solid var(--forest);
+  display: grid;
+  gap: 0.2rem;
+  padding-left: 0.75rem;
+}
+
+li strong {
+  font-size: 0.78rem;
+}
+
+li span {
+  color: var(--muted-strong);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.safety-note {
+  background: #fff8e8;
+  border-top: 1px solid #e8dcb8;
+  color: #684f19;
+  display: grid;
+  font-size: 0.72rem;
+  gap: 0.2rem;
+  line-height: 1.45;
+  padding: 0.8rem 1rem;
+}
+
+@media (max-width: 480px) {
+  .guide-heading {
+    align-items: flex-start;
+  }
+}

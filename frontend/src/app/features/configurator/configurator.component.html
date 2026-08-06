@@ -1,0 +1,798 @@
+<section class="hero">
+  <div>
+    <p class="eyebrow">GÖRSEL PROJE TALEBİ</p>
+    <h1>Ölçünüzü girin,<br /><em>çiziminizi görün.</em></h1>
+    <p class="lead">
+      PVC doğrama, kapı, sineklik, giyotin cam, dış cephe ve balkon kapama ihtiyacınızı birkaç sade
+      soruyla tarif edin. Yaklaşık ölçülü çalışma ekibimize güvenle ulaşsın.
+    </p>
+  </div>
+  <aside class="review-promise">
+    <span class="shield" aria-hidden="true">✓</span>
+    <div>
+      <strong>Uzman kontrolü</strong>
+      <p>{{ reviewMessage }}</p>
+    </div>
+  </aside>
+</section>
+
+<section class="configurator-shell" aria-labelledby="configurator-title">
+  <div class="step-heading">
+    <div class="step-heading-copy">
+      @if (step() > 1 && step() < 4) {
+        <button
+          type="button"
+          class="step-back text-button"
+          data-testid="step-back"
+          (click)="goBack()"
+        >
+          <span aria-hidden="true">←</span>
+          {{ step() === 2 ? 'Ürün seçimine dön' : 'Çizime dön' }}
+        </button>
+      }
+      <p class="eyebrow">ADIM {{ step() > 3 ? 3 : step() }} / 3</p>
+      <h2 #configuratorTitle id="configurator-title" tabindex="-1">
+        @switch (step()) {
+          @case (1) {
+            Ne üzerinde çalışalım?
+          }
+          @case (2) {
+            Kısa sorular ve ölçü
+          }
+          @case (3) {
+            İletişim bilgileri
+          }
+          @case (4) {
+            Talebiniz alındı
+          }
+        }
+      </h2>
+    </div>
+    <ol class="steps" aria-label="Talep adımları">
+      <li [class.active]="step() >= 1" [attr.aria-current]="step() === 1 ? 'step' : null">
+        @if (step() > 1 && step() < 4) {
+          <button
+            type="button"
+            class="step-link text-button"
+            data-testid="step-product"
+            aria-label="Ürün seçimi adımına dön"
+            (click)="goToStep(1)"
+          >
+            <span>1</span> Ürün
+          </button>
+        } @else {
+          <span>1</span> Ürün
+        }
+      </li>
+      <li [class.active]="step() >= 2" [attr.aria-current]="step() === 2 ? 'step' : null">
+        @if (step() > 2 && step() < 4) {
+          <button
+            type="button"
+            class="step-link text-button"
+            data-testid="step-drawing"
+            aria-label="Çizim ve ölçü adımına dön"
+            (click)="goToStep(2)"
+          >
+            <span>2</span> Çizim
+          </button>
+        } @else {
+          <span>2</span> Çizim
+        }
+      </li>
+      <li [class.active]="step() >= 3" [attr.aria-current]="step() === 3 ? 'step' : null">
+        <span>3</span> İletişim
+      </li>
+    </ol>
+  </div>
+
+  @if (step() === 1) {
+    @if (catalogLoading()) {
+      <div class="catalog-state" role="status">
+        <span class="catalog-spinner" aria-hidden="true"></span>
+        <strong>Ürün seçenekleri hazırlanıyor…</strong>
+        <p>Güncel form kataloğu yükleniyor.</p>
+      </div>
+    } @else {
+      @if (catalogError()) {
+        <div class="catalog-warning" role="alert">
+          <p>{{ catalogError() }}</p>
+          <button type="button" class="text-button" (click)="loadCatalog()">Yeniden dene</button>
+        </div>
+      }
+      <div class="product-grid">
+        @for (product of productChoices(); track product.key) {
+          <button type="button" class="product-card" (click)="selectProduct(product.key)">
+            <span>
+              <strong>{{ product.name }}</strong>
+              <small>{{ product.description }}</small>
+            </span>
+            <span class="arrow" aria-hidden="true">→</span>
+          </button>
+        }
+      </div>
+    }
+    <p class="privacy-note">
+      Girdiğiniz ölçüler ve iletişim bilgileriniz yalnızca talebinizin değerlendirilmesi için
+      kullanılır.
+    </p>
+  }
+
+  @if (step() === 2) {
+    <div class="workspace">
+      <form class="form-panel" [formGroup]="productForm" (ngSubmit)="goToContact()">
+        @if (catalogError()) {
+          <div class="catalog-warning field-wide" role="alert">
+            <p>{{ catalogError() }}</p>
+            <button type="button" class="text-button" (click)="loadCatalog()">
+              Güncel kataloğu yeniden yükle
+            </button>
+          </div>
+        }
+
+        <section class="guided-questions field-wide" aria-labelledby="usage-questions-title">
+          <div class="mini-heading">
+            <div>
+              <p class="eyebrow">ÖNCE İHTİYACINIZ</p>
+              <h3 id="usage-questions-title">Size uygun çözümü anlayalım</h3>
+            </div>
+            <span>{{ currentQuestions().length }} kısa soru</span>
+          </div>
+          <div class="question-grid" [formGroup]="catalogForm()">
+            @for (field of currentQuestions(); track field.id; let index = $index) {
+              <div class="field question-field">
+                @switch (field.field_type) {
+                  @case ('select') {
+                    <label [for]="'catalog-question-' + index">{{ field.label }}</label>
+                    <select [id]="'catalog-question-' + index" [formControlName]="field.key">
+                      @for (option of field.options; track option.id) {
+                        <option [value]="option.value">{{ option.label }}</option>
+                      }
+                    </select>
+                  }
+                  @case ('boolean') {
+                    <label class="dynamic-check" [for]="'catalog-question-' + index">
+                      <input
+                        [id]="'catalog-question-' + index"
+                        type="checkbox"
+                        [formControlName]="field.key"
+                      />
+                      {{ field.label }}
+                    </label>
+                  }
+                  @case ('text') {
+                    <label [for]="'catalog-question-' + index">{{ field.label }}</label>
+                    <input
+                      [id]="'catalog-question-' + index"
+                      type="text"
+                      maxlength="500"
+                      [formControlName]="field.key"
+                    />
+                  }
+                }
+                @if (field.help_text) {
+                  <small>{{ field.help_text }}</small>
+                }
+              </div>
+            }
+          </div>
+        </section>
+
+        @if (isBalcony()) {
+          <section class="balcony-measurement field-wide" aria-labelledby="balcony-plan-title">
+            <div class="mini-heading">
+              <div>
+                <p class="eyebrow">BALKON PLANI VE ÖLÇÜLER</p>
+                <h3 id="balcony-plan-title">Her açık cepheyi ayrı ölçün</h3>
+              </div>
+              <span>Yaklaşık ölçü yeterli</span>
+            </div>
+
+            @if (balconyShapeField(); as shapeField) {
+              <div class="field plan-selector" [formGroup]="catalogForm()">
+                <label for="balcony-shape">{{ shapeField.label }}</label>
+                <select id="balcony-shape" formControlName="enclosure_shape">
+                  @for (option of shapeField.options; track option.id) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+                <small>
+                  L planda ana ve yan cepheyi; özel planda bütün açık cepheleri sırayla girin.
+                </small>
+              </div>
+            }
+
+            <div class="balcony-segment-list" formArrayName="balconySegments">
+              @for (segment of balconySegments.controls; track segment; let index = $index) {
+                <article class="balcony-segment" [formGroupName]="index">
+                  <div class="segment-heading">
+                    <strong>{{ segment.controls.label.value }}</strong>
+                    @if (isCustomBalconyShape() && index > 1) {
+                      <button
+                        type="button"
+                        class="segment-remove"
+                        (click)="removeBalconySegment(index)"
+                      >
+                        Cepheyi kaldır
+                      </button>
+                    }
+                  </div>
+                  <div class="field">
+                    <label [for]="'balcony-width-' + index">
+                      {{ currentProduct().measurement.short_width_label }} <span>mm</span>
+                    </label>
+                    <input
+                      [id]="'balcony-width-' + index"
+                      type="number"
+                      inputmode="numeric"
+                      [attr.min]="index === 0 ? 1000 : 300"
+                      max="30000"
+                      formControlName="widthMm"
+                      [attr.placeholder]="index === 0 ? 4000 : 1800"
+                    />
+                    @if (segment.controls.widthMm.touched && segment.controls.widthMm.invalid) {
+                      <small class="error">
+                        {{ index === 0 ? '1.000' : '300' }} ile 30.000 mm arasında bir ölçü girin.
+                      </small>
+                    }
+                  </div>
+                  @if (isCustomBalconyShape() && index > 0) {
+                    <div class="field">
+                      <label [for]="'balcony-turn-' + index">Önceki cepheden sonra</label>
+                      <select [id]="'balcony-turn-' + index" formControlName="turnDegrees">
+                        @for (turn of balconyTurnOptions; track turn.value) {
+                          <option [ngValue]="turn.value">{{ turn.label }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+
+            @if (isCustomBalconyShape()) {
+              <button
+                type="button"
+                class="add-segment"
+                [disabled]="balconySegments.length >= 8"
+                (click)="addBalconySegment()"
+              >
+                + Yeni cephe ekle
+              </button>
+            }
+
+            <div class="balcony-height-row">
+              <div class="field">
+                <label for="balcony-height">
+                  {{ currentProduct().measurement.short_height_label }} <span>mm</span>
+                </label>
+                <input
+                  id="balcony-height"
+                  type="number"
+                  inputmode="numeric"
+                  min="1000"
+                  max="4000"
+                  formControlName="height"
+                  placeholder="1600"
+                />
+                @if (productForm.controls.height.touched && productForm.controls.height.invalid) {
+                  <small class="error">1.000 ile 4.000 mm arasında bir yükseklik girin.</small>
+                }
+              </div>
+              <div class="measurement-total" aria-live="polite">
+                <span>Toplam açık cephe</span>
+                <strong>{{ balconyTotalWidth() | number: '1.0-0' }} mm</strong>
+                <small
+                  >{{ selectedBalconyShapeLabel() }} · {{ balconySegments.length }} cephe</small
+                >
+              </div>
+            </div>
+            <p class="balcony-help">
+              Duvar boyunca değil, kapatılacak her açık kenarı köşeden köşeye ölçün. Güvenliğiniz
+              için dışarı sarkmayın; ulaşamadığınız yerde tahmini ölçü girebilirsiniz.
+            </p>
+          </section>
+        } @else {
+          <app-measurement-guide class="field-wide" [measurement]="currentProduct().measurement" />
+
+          <div class="field">
+            <label for="width">
+              {{ currentProduct().measurement.short_width_label }} <span>mm</span>
+            </label>
+            <input
+              id="width"
+              type="number"
+              inputmode="numeric"
+              formControlName="width"
+              [attr.placeholder]="measurementReference().widthMm"
+              aria-describedby="measurement-help"
+            />
+            @if (productForm.controls.width.touched && productForm.controls.width.invalid) {
+              <small class="error">Geçerli bir genişlik girin.</small>
+            }
+          </div>
+          <div class="field">
+            <label for="height">
+              {{ currentProduct().measurement.short_height_label }} <span>mm</span>
+            </label>
+            <input
+              id="height"
+              type="number"
+              inputmode="numeric"
+              formControlName="height"
+              [attr.placeholder]="measurementReference().heightMm"
+              aria-describedby="measurement-help"
+            />
+            @if (productForm.controls.height.touched && productForm.controls.height.invalid) {
+              <small class="error">Geçerli bir yükseklik girin.</small>
+            }
+          </div>
+          <p id="measurement-help" class="field-hint field-wide">
+            Yukarıdaki rehberde gösterilen yaklaşık açıklık ölçüsünü milimetre olarak girin. Örnek:
+            120 cm için 1200 yazın. Bu ürünün görsel ölçek referansı
+            {{ measurementReference().widthMm }} × {{ measurementReference().heightMm }} mm'dir.
+          </p>
+        }
+
+        <div class="field">
+          <label for="quantity">Adet</label>
+          <input id="quantity" type="number" min="1" max="100" formControlName="quantity" />
+        </div>
+
+        <section class="dynamic-fields field-wide" [formGroup]="catalogForm()">
+          <div class="mini-heading">
+            <div>
+              <p class="eyebrow">SEÇENEKLER</p>
+              <h3>Ürününüzü biraz daha tarif edin</h3>
+            </div>
+            @if (usingFallbackCatalog()) {
+              <span>Temel katalog</span>
+            }
+          </div>
+          <div class="dynamic-field-grid">
+            @for (field of currentDetailFields(); track field.id; let index = $index) {
+              @switch (field.field_type) {
+                @case ('select') {
+                  <div class="field">
+                    <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
+                    <select [id]="'catalog-detail-' + index" [formControlName]="field.key">
+                      @for (option of field.options; track option.id) {
+                        <option [value]="option.value">{{ option.label }}</option>
+                      }
+                    </select>
+                    @if (field.help_text) {
+                      <small>{{ field.help_text }}</small>
+                    }
+                  </div>
+                }
+                @case ('boolean') {
+                  <label class="dynamic-check">
+                    <input type="checkbox" [formControlName]="field.key" />
+                    <span>
+                      <strong>{{ field.label }}</strong>
+                      @if (field.help_text) {
+                        <small>{{ field.help_text }}</small>
+                      }
+                    </span>
+                  </label>
+                }
+                @case ('text') {
+                  <div class="field">
+                    <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
+                    <input
+                      [id]="'catalog-detail-' + index"
+                      type="text"
+                      maxlength="500"
+                      [formControlName]="field.key"
+                    />
+                    @if (field.help_text) {
+                      <small>{{ field.help_text }}</small>
+                    }
+                  </div>
+                }
+              }
+            }
+          </div>
+        </section>
+
+        @if (selectedOptionDetails().length) {
+          <section
+            class="option-detail-list field-wide"
+            aria-label="Seçilen seçeneklerin açıklamaları"
+          >
+            @for (detail of selectedOptionDetails(); track detail.field.id) {
+              <article class="option-detail-card">
+                <div>
+                  <p class="eyebrow">{{ detail.field.label }}</p>
+                  <h4>{{ detail.option.label }}</h4>
+                  @if (detail.option.description) {
+                    <p>{{ detail.option.description }}</p>
+                  }
+                  @if (detail.option.features?.length) {
+                    <ul>
+                      @for (feature of detail.option.features; track feature) {
+                        <li>{{ feature }}</li>
+                      }
+                    </ul>
+                  }
+                  @if (detail.option.profile_spec; as profileSpec) {
+                    <section class="profile-spec-summary" aria-label="Profil ölçüleri">
+                      <h5>Profil ölçüleri</h5>
+                      <dl class="profile-spec-grid">
+                        @for (entry of profileSpecEntries(profileSpec); track entry.key) {
+                          <div>
+                            <dt>{{ entry.label }}</dt>
+                            <dd>{{ entry.value | number: '1.0-1' }} {{ entry.unit }}</dd>
+                          </div>
+                        }
+                      </dl>
+                    </section>
+                  }
+                </div>
+                @if (detail.option.section_image_urls?.length) {
+                  <div class="option-detail-images">
+                    @for (imageUrl of detail.option.section_image_urls; track imageUrl) {
+                      <img
+                        [src]="imageUrl"
+                        [alt]="detail.option.label + ' örnek görünümü'"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    }
+                  </div>
+                }
+              </article>
+            }
+          </section>
+        }
+
+        @if (isJoinery() && joineryPanels().length) {
+          <section class="joinery-editor field-wide" aria-labelledby="joinery-editor-title">
+            <div class="mini-heading">
+              <div>
+                <p class="eyebrow">KANAT DÜZENİ</p>
+                <h3 id="joinery-editor-title">Kapı ve pencere bölümlerini ayarlayın</h3>
+              </div>
+              <span>{{ joineryPanels().length }} bölüm</span>
+            </div>
+            <p class="joinery-editor-help">
+              Seçtiğiniz standart düzen ölçünüze otomatik yerleşir. Her bölümün çalışma biçimini
+              ayrı seçebilirsiniz; sağdaki çizim aynı anda güncellenir.
+            </p>
+            <div class="joinery-panel-grid">
+              @for (panel of joineryPanels(); track panel.slot; let index = $index) {
+                <article class="joinery-panel-card" [class.door-panel]="panel.role === 'door'">
+                  <header>
+                    <span>{{ index + 1 }}</span>
+                    <div>
+                      <strong>{{ panel.label }}</strong>
+                      <small>{{ panel.role === 'door' ? 'Kapı bölümü' : 'Pencere bölümü' }}</small>
+                    </div>
+                  </header>
+                  <div class="field">
+                    <label [for]="'panel-opening-' + index">Çalışma biçimi</label>
+                    @if (joineryOpeningOptions().length) {
+                      <select
+                        [id]="'panel-opening-' + index"
+                        [value]="panel.opening"
+                        (change)="updateJoineryPanelOpening(index, $any($event.target).value)"
+                      >
+                        @for (option of joineryOpeningOptions(); track option.value) {
+                          <option [value]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <p class="hinge-note" [id]="'panel-opening-' + index">
+                        Açılım seçeneği yönetici tarafından kapatıldı.
+                      </p>
+                    }
+                  </div>
+                  @if (joineryPanelNeedsHinge(panel) && joineryHingeOptions().length) {
+                    <div class="field">
+                      <label [for]="'panel-hinge-' + index">Menteşe tarafı</label>
+                      <select
+                        [id]="'panel-hinge-' + index"
+                        [value]="panel.hinge"
+                        (change)="updateJoineryPanelHinge(index, $any($event.target).value)"
+                      >
+                        @for (option of joineryHingeOptions(); track option.value) {
+                          <option [value]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    </div>
+                  } @else if (joineryPanelNeedsHinge(panel)) {
+                    <p class="hinge-note">Menteşe seçeneği yönetici tarafından kapatıldı.</p>
+                  } @else {
+                    <p class="hinge-note">
+                      {{
+                        panel.opening === 'fixed'
+                          ? 'Bu bölüm sabittir.'
+                          : 'Menteşe tarafı gerekmez.'
+                      }}
+                    </p>
+                  }
+                </article>
+              }
+            </div>
+            <div class="opening-symbol-legend" aria-label="Çizim işaretleri">
+              <span><b>+</b> Sabit</span>
+              <span><b>‹</b> Tek açılım</span>
+              <span><b>△</b> Vasistas</span>
+              <span><b>◇</b> Çift açılım</span>
+              <span><b>→</b> Sürme</span>
+            </div>
+          </section>
+        }
+
+        @if (currentSeriesField(); as seriesField) {
+          <section class="series-panel field-wide" aria-labelledby="series-title">
+            <div class="field series-select">
+              <label id="series-title" for="profileSeries">
+                {{ seriesField.label }}
+                @if (!seriesField.required) {
+                  <span>isteğe bağlı</span>
+                }
+              </label>
+              <select
+                id="profileSeries"
+                formControlName="profileSeries"
+                aria-describedby="series-help"
+              >
+                <option value="">
+                  {{ seriesField.required ? 'Bir seri seçin' : 'Uzman önerisi istiyorum' }}
+                </option>
+                @for (option of seriesField.options; track option.id) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              @if (seriesField.help_text) {
+                <small id="series-help">{{ seriesField.help_text }}</small>
+              }
+              @if (
+                productForm.controls.profileSeries.touched &&
+                productForm.controls.profileSeries.invalid
+              ) {
+                <small class="error">Yayınlanmış bir seri seçin.</small>
+              }
+            </div>
+
+            @if (selectedSeriesOption(); as series) {
+              @if (selectedSeriesHasDetails()) {
+                <article class="series-info" aria-labelledby="selected-series-title">
+                  <div class="series-info-copy">
+                    <p class="eyebrow">SEÇTİĞİNİZ SERİ</p>
+                    <h4 id="selected-series-title">{{ series.label }}</h4>
+                    @if (series.description) {
+                      <p>{{ series.description }}</p>
+                    }
+                    @if (series.features?.length) {
+                      <ul>
+                        @for (feature of series.features; track feature) {
+                          <li>{{ feature }}</li>
+                        }
+                      </ul>
+                    }
+                    @if (series.profile_spec; as profileSpec) {
+                      <section class="profile-spec-summary" aria-label="Profil ölçüleri">
+                        <h5>Profil ölçüleri</h5>
+                        <dl class="profile-spec-grid">
+                          @for (entry of profileSpecEntries(profileSpec); track entry.key) {
+                            <div>
+                              <dt>{{ entry.label }}</dt>
+                              <dd>{{ entry.value | number: '1.0-1' }} {{ entry.unit }}</dd>
+                            </div>
+                          }
+                        </dl>
+                      </section>
+                    }
+                  </div>
+                  @if (series.section_image_urls?.length) {
+                    <div class="series-sections" aria-label="Seri kesit görselleri">
+                      @for (
+                        imageUrl of series.section_image_urls;
+                        track imageUrl;
+                        let index = $index
+                      ) {
+                        <figure>
+                          <img
+                            [src]="imageUrl"
+                            [alt]="series.label + ' kesit görünümü ' + (index + 1)"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                          <figcaption>Kesit görünümü {{ index + 1 }}</figcaption>
+                        </figure>
+                      }
+                    </div>
+                  }
+                </article>
+              }
+            }
+          </section>
+        }
+        @if (currentNotesField(); as notesField) {
+          <div class="field field-wide">
+            <label for="notes">
+              {{ notesField.label }}
+              @if (!notesField.required) {
+                <span>isteğe bağlı</span>
+              }
+            </label>
+            <textarea id="notes" rows="3" formControlName="notes"></textarea>
+            @if (notesField.help_text) {
+              <small>{{ notesField.help_text }}</small>
+            }
+            @if (productForm.controls.notes.touched && productForm.controls.notes.invalid) {
+              <small class="error">Bu alanı kontrol edin.</small>
+            }
+          </div>
+        }
+
+        <div class="form-actions field-wide">
+          <button type="button" class="button secondary" (click)="goBack()">Geri</button>
+          <button type="submit" class="button primary">İletişim adımına geç</button>
+        </div>
+      </form>
+
+      <aside class="preview-panel">
+        <div class="preview-label">
+          <span>YERLEŞİM SİMÜLASYONU</span>
+          <small>{{ measurementReady() ? 'Ölçüye göre yerleşti' : 'Önce en ve boyu girin' }}</small>
+        </div>
+        @if (isBalcony()) {
+          <app-balcony-plan-preview
+            [segments]="currentBalconySegments()"
+            [shape]="selectedBalconyShape()"
+            [shapeLabel]="selectedBalconyShapeLabel()"
+            [ready]="measurementReady()"
+            [selectable]="true"
+            [selectedIndex]="selectedBalconySegmentIndex()"
+            (segmentSelected)="selectBalconySegment($event)"
+          />
+          @if (measurementReady() && selectedBalconySegment(); as selectedSegment) {
+            <div class="selected-face-note" aria-live="polite">
+              <span>GÖRÜNTÜLENEN CEPHE</span>
+              <strong>{{ selectedSegment.label }} · {{ selectedSegment.width_mm }} mm</strong>
+              <small>Panel dağılımı aşağıda seçtiğiniz cepheye göre gösteriliyor.</small>
+            </div>
+          }
+        }
+        <app-installation-scene
+          [item]="installationPreviewItem()"
+          [productName]="installationPreviewProductName()"
+          [measurementVariant]="currentProduct().measurement.variant"
+          [measurementReady]="measurementReady()"
+          [balconySegmentIndex]="selectedBalconySegmentIndex()"
+        />
+        <p class="drawing-note">Bu temsili bir yerleşimdir; keşif ve imalat projesi değildir.</p>
+      </aside>
+    </div>
+  }
+
+  @if (step() === 3) {
+    <div class="contact-layout">
+      <aside class="summary-card">
+        <p class="eyebrow">SEÇİMİNİZ</p>
+        <app-product-preview [item]="currentItem()" [productName]="currentProduct().name" />
+        <button type="button" class="text-button" (click)="goToStep(2)">Ölçüleri düzenle</button>
+      </aside>
+
+      <form class="contact-form" [formGroup]="contactForm" (ngSubmit)="submit()">
+        <div class="review-banner" role="note">
+          <span aria-hidden="true">i</span>
+          <p>{{ reviewMessage }}</p>
+        </div>
+
+        <div class="field field-wide">
+          <label for="fullName">Ad soyad</label>
+          <input id="fullName" type="text" autocomplete="name" formControlName="fullName" />
+          @if (contactForm.controls.fullName.touched && contactForm.controls.fullName.invalid) {
+            <small class="error">Adınızı ve soyadınızı girin.</small>
+          }
+        </div>
+        <div class="field field-wide">
+          <label for="companyName">Firma <span>isteğe bağlı</span></label>
+          <input
+            id="companyName"
+            type="text"
+            autocomplete="organization"
+            formControlName="companyName"
+          />
+        </div>
+
+        <fieldset class="contact-choice field-wide">
+          <legend>Nasıl iletişim kuralım?</legend>
+          <label>
+            <input type="radio" value="phone" formControlName="preferredContact" />
+            Telefon
+          </label>
+          <label>
+            <input type="radio" value="email" formControlName="preferredContact" />
+            E-posta
+          </label>
+        </fieldset>
+
+        <div class="field">
+          <label for="phone">Telefon</label>
+          <input id="phone" type="tel" autocomplete="tel" formControlName="phone" />
+          @if (contactForm.controls.phone.touched && contactForm.controls.phone.invalid) {
+            <small class="error">Geçerli bir telefon numarası girin.</small>
+          }
+        </div>
+        <div class="field">
+          <label for="email">E-posta</label>
+          <input id="email" type="email" autocomplete="email" formControlName="email" />
+          @if (contactForm.controls.email.touched && contactForm.controls.email.invalid) {
+            <small class="error">Geçerli bir e-posta adresi girin.</small>
+          }
+        </div>
+        <div class="field">
+          <label for="city">İl</label>
+          <input id="city" type="text" autocomplete="address-level1" formControlName="city" />
+        </div>
+        <div class="field">
+          <label for="district">İlçe</label>
+          <input
+            id="district"
+            type="text"
+            autocomplete="address-level2"
+            formControlName="district"
+          />
+        </div>
+        <div class="field field-wide">
+          <label for="projectNote">Proje notu <span>isteğe bağlı</span></label>
+          <textarea id="projectNote" rows="4" formControlName="projectNote"></textarea>
+        </div>
+
+        <div class="trap" aria-hidden="true">
+          <label for="website">Web sitesi</label>
+          <input
+            id="website"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+            formControlName="website"
+          />
+        </div>
+
+        <label class="consent field-wide">
+          <input type="checkbox" formControlName="privacyConsent" />
+          <span>
+            Bilgilerimin bu talebin değerlendirilmesi ve benimle iletişime geçilmesi amacıyla
+            işlenmesini kabul ediyorum.
+          </span>
+        </label>
+        @if (
+          contactForm.controls.privacyConsent.touched && contactForm.controls.privacyConsent.invalid
+        ) {
+          <small class="error field-wide">Devam etmek için onay vermelisiniz.</small>
+        }
+
+        @if (submitError()) {
+          <p class="submit-error field-wide" role="alert">{{ submitError() }}</p>
+        }
+
+        <div class="form-actions field-wide">
+          <button type="button" class="button secondary" (click)="goBack()">Geri</button>
+          <button type="submit" class="button primary" [disabled]="submitting()">
+            {{ submitting() ? 'İletiliyor…' : 'Talebi gönder' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (step() === 4) {
+    <div class="success-card" role="status">
+      <span class="success-mark" aria-hidden="true">✓</span>
+      <p class="eyebrow">BAŞARIYLA İLETİLDİ</p>
+      <h3>Talebiniz ekibimize ulaştı.</h3>
+      @if (completion()?.request_number) {
+        <p class="request-number">
+          Talep numaranız <strong>{{ completion()?.request_number }}</strong>
+        </p>
+      }
+      <p>{{ completion()?.message || reviewMessage }}</p>
+      <button type="button" class="button primary" (click)="reset()">Yeni talep oluştur</button>
+    </div>
+  }
+</section>

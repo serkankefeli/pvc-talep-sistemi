@@ -1,0 +1,7 @@
+# Send only the Python package metadata and application source to the builder.
+# In particular, local secrets, SQLite files and uploaded logos never enter the
+# Docker build context.
+*
+!pyproject.toml
+!app/
+!app/**

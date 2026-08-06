@@ -1,0 +1,32 @@
+<header class="site-header">
+  <a class="brand" routerLink="/" [attr.aria-label]="branding().brand_name + ' ana sayfa'">
+    @if (branding().logo_url) {
+      <span class="brand-logo">
+        <img [src]="branding().logo_url" [alt]="branding().logo_alt" />
+      </span>
+    } @else {
+      <span class="brand-mark" aria-hidden="true">{{ brandMark() }}</span>
+    }
+    <span>
+      <strong>{{ branding().brand_name }}</strong>
+      @if (branding().tagline) {
+        <small>{{ branding().tagline }}</small>
+      }
+    </span>
+  </a>
+
+  <nav aria-label="Ana menü">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      Talep oluştur
+    </a>
+    <a routerLink="/admin">Yönetim</a>
+  </nav>
+</header>
+
+<main>
+  <router-outlet />
+</main>
+
+<footer class="site-footer">
+  <p>Çizimler ön değerlendirme amaçlıdır. Kesin teknik uygunluk uzman kontrolüyle belirlenir.</p>
+</footer>

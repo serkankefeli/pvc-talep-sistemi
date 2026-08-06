@@ -1,0 +1,25 @@
+<section class="admin-layout">
+  <aside class="admin-nav">
+    <div class="admin-identity">
+      <p class="eyebrow">YÖNETİM ALANI</p>
+      <span class="admin-brand">
+        @if (branding().logo_url) {
+          <img [src]="branding().logo_url" [alt]="branding().logo_alt" />
+        } @else {
+          <span aria-hidden="true">{{ brandMark() }}</span>
+        }
+        <strong>{{ branding().brand_name }}</strong>
+      </span>
+      <h1>Talep merkezi</h1>
+    </div>
+    <nav aria-label="Yönetim menüsü">
+      <a routerLink="/admin/talepler" routerLinkActive="active">Talep Merkezi</a>
+      <a routerLink="/admin/katalog" routerLinkActive="active">Form kataloğu</a>
+      <a routerLink="/admin/marka" routerLinkActive="active">Marka / Logo</a>
+    </nav>
+    <button type="button" class="logout" (click)="logout()">Güvenli çıkış</button>
+  </aside>
+  <div class="admin-content">
+    <router-outlet />
+  </div>
+</section>

@@ -1,0 +1,70 @@
+name: pvc
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    init: true
+    env_file:
+      - path: ./backend/.env
+        required: true
+      - path: ./backend/.env.docker
+        required: true
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      ENABLE_DOCS: "false"
+      DATABASE_URL: sqlite:////data/pvc_requests.db
+      BRANDING_UPLOAD_DIR: /data/uploads/branding
+      CORS_ORIGINS: http://localhost:4200,http://127.0.0.1:4200
+      ADMIN_PANEL_BASE_URL: http://127.0.0.1:4200/admin
+    volumes:
+      - type: bind
+        source: ./backend/data
+        target: /data
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).read()
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    init: true
+    depends_on:
+      api:
+        condition: service_healthy
+        restart: true
+    ports:
+      - "127.0.0.1:4200:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--output-document=/dev/null", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+

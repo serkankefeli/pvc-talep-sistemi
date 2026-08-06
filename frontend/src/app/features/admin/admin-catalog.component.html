@@ -1,0 +1,619 @@
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">FORM YÖNETİMİ</p>
+    <h2>Katalog</h2>
+    <p>Ürün kartlarını, soruları, ölçüm rehberini ve seçenekleri yönetin.</p>
+  </div>
+  <button type="button" class="button primary" (click)="startNewProduct()">Yeni ürün</button>
+</header>
+
+<div class="public-notice" role="note">
+  <strong>Public görünür içerik</strong>
+  <span>
+    Ad, açıklama, yardım metni ve seçenek etiketleri müşteri formunda aynen görünür. HTML
+    çalıştırılmaz; yalnız düz metin gösterilir.
+  </span>
+</div>
+
+@if (error()) {
+  <div class="action-banner error-banner" role="alert">
+    <span>{{ error() }}</span>
+    <button type="button" class="text-button" (click)="loadProducts()">Yeniden yükle</button>
+  </div>
+}
+@if (message()) {
+  <div class="action-banner success-banner" role="status">{{ message() }}</div>
+}
+
+@if (loading()) {
+  <div class="state-card" role="status">Katalog yükleniyor…</div>
+} @else {
+  <div class="catalog-layout">
+    <aside class="product-sidebar">
+      <div class="side-title">
+        <strong>Ürünler</strong>
+        <span>{{ products().length }}</span>
+      </div>
+      <div class="product-list">
+        @for (product of products(); track product.key) {
+          <button
+            type="button"
+            class="product-row"
+            [class.selected]="selectedProductKey() === product.key && !productIsNew()"
+            [class.inactive]="!product.active"
+            (click)="selectProduct(product)"
+          >
+            <span>
+              <strong>{{ product.name }}</strong>
+              <small>
+                Sıra {{ product.sort_order }} ·
+                {{ product.active ? 'Yayında' : 'Yayında değil' }}
+              </small>
+            </span>
+          </button>
+        }
+      </div>
+    </aside>
+
+    <div class="catalog-editor">
+      <section class="editor-card">
+        <div class="editor-title">
+          <div>
+            <p class="eyebrow">{{ productIsNew() ? 'YENİ ÜRÜN' : 'ÜRÜN AYARLARI' }}</p>
+            <h3>{{ productIsNew() ? 'Ürün ekle' : productForm.controls.name.value }}</h3>
+          </div>
+          @if (!productIsNew() && selectedProduct(); as product) {
+            <button
+              type="button"
+              class="button secondary compact"
+              [disabled]="busy()"
+              (click)="toggleProduct(product)"
+            >
+              {{ product.active ? 'Yayından kaldır' : 'Yayınla' }}
+            </button>
+          }
+        </div>
+
+        <form class="editor-form" [formGroup]="productForm" (ngSubmit)="saveProduct()">
+          <div class="field">
+            <label for="catalogProductKey">Ürün anahtarı</label>
+            <input
+              id="catalogProductKey"
+              type="text"
+              maxlength="64"
+              autocomplete="off"
+              spellcheck="false"
+              formControlName="key"
+              [readonly]="!productIsNew()"
+              [attr.aria-readonly]="!productIsNew()"
+              placeholder="Örn. pergola"
+            />
+            @if (productIsNew()) {
+              <small class="form-hint">
+                En az 2 karakter; yalnız küçük harf, rakam ve alt çizgi kullanın. Sonradan
+                değiştirilemez.
+              </small>
+            } @else {
+              <small class="form-hint">Mevcut ürün anahtarı değiştirilemez.</small>
+            }
+          </div>
+          <div class="field">
+            <label for="catalogProductSort">Sıra</label>
+            <input id="catalogProductSort" type="number" min="0" formControlName="sortOrder" />
+          </div>
+          <div class="field field-wide">
+            <label for="catalogProductName">Görünen ad</label>
+            <input id="catalogProductName" type="text" formControlName="name" />
+          </div>
+          <div class="field field-wide">
+            <label for="catalogProductDescription">Açıklama</label>
+            <textarea
+              id="catalogProductDescription"
+              rows="2"
+              formControlName="description"
+            ></textarea>
+          </div>
+          <div class="field">
+            <label for="measurementVariant">Ölçüm görünümü</label>
+            <select id="measurementVariant" formControlName="measurementVariant">
+              <option value="opening">Kapı / pencere açıklığı</option>
+              <option value="facade">Cephe yüzeyi</option>
+              <option value="balcony">Balkon açıklığı</option>
+            </select>
+          </div>
+          <label class="active-check">
+            <input type="checkbox" formControlName="active" />
+            Ürün yayında
+          </label>
+          @if (productIsNew() && !productForm.controls.active.value) {
+            <p class="form-hint field-wide">
+              Yeni ürün taslak olarak kaydedilir. Alan ve seçeneklerini hazırladıktan sonra
+              yayınlayabilirsiniz.
+            </p>
+          }
+          <div class="field field-wide">
+            <label for="widthInstruction">Genişlik ölçüm açıklaması</label>
+            <input id="widthInstruction" type="text" formControlName="widthInstruction" />
+          </div>
+          <div class="field field-wide">
+            <label for="heightInstruction">Yükseklik ölçüm açıklaması</label>
+            <input id="heightInstruction" type="text" formControlName="heightInstruction" />
+          </div>
+          <div class="field">
+            <label for="shortWidthLabel">Kısa genişlik etiketi</label>
+            <input id="shortWidthLabel" type="text" formControlName="shortWidthLabel" />
+          </div>
+          <div class="field">
+            <label for="shortHeightLabel">Kısa yükseklik etiketi</label>
+            <input id="shortHeightLabel" type="text" formControlName="shortHeightLabel" />
+          </div>
+          @if (productForm.invalid && productForm.touched) {
+            <p class="form-error field-wide">
+              Zorunlu alanları ve public içerik kurallarını kontrol edin.
+            </p>
+          }
+          <div class="form-actions field-wide">
+            <button type="submit" class="button primary" [disabled]="busy()">
+              {{ busy() ? 'Kaydediliyor…' : 'Ürünü kaydet' }}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      @if (!productIsNew() && selectedProductKey()) {
+        <div class="subeditors">
+          <section class="editor-card">
+            <div class="editor-title">
+              <div>
+                <p class="eyebrow">FORM ALANLARI</p>
+                <h3>Sorular ve seçimler</h3>
+              </div>
+              <button type="button" class="button secondary compact" (click)="startNewField()">
+                Alan ekle
+              </button>
+            </div>
+
+            <div class="entity-list">
+              @for (field of fields(); track field.id) {
+                <button
+                  type="button"
+                  class="entity-row"
+                  [class.selected]="selectedFieldId() === field.id && !fieldIsNew()"
+                  [class.inactive]="!field.active"
+                  (click)="selectField(field)"
+                >
+                  <span>
+                    <strong>{{ field.label }}</strong>
+                    <small>{{ field.key }} · sıra {{ field.sort_order }}</small>
+                  </span>
+                  <em>{{ field.field_type }}</em>
+                </button>
+              }
+            </div>
+
+            <form class="stack-form" [formGroup]="fieldForm" (ngSubmit)="saveField()">
+              <div class="field">
+                <label for="catalogFieldKey">Alan anahtarı</label>
+                <input
+                  id="catalogFieldKey"
+                  type="text"
+                  formControlName="key"
+                  [readOnly]="!fieldIsNew()"
+                />
+                <small class="form-hint">
+                  Rehber soruları için <code>usage_</code> ile başlayın.
+                </small>
+              </div>
+              <div class="field">
+                <label for="catalogFieldLabel">Soru / etiket</label>
+                <input id="catalogFieldLabel" type="text" formControlName="label" />
+              </div>
+              <div class="field">
+                <label for="catalogFieldHelp">Yardım metni</label>
+                <input id="catalogFieldHelp" type="text" formControlName="helpText" />
+              </div>
+              <div class="inline-fields">
+                <div class="field">
+                  <label for="catalogFieldType">Alan türü</label>
+                  <select id="catalogFieldType" formControlName="fieldType">
+                    <option value="select">Seçim listesi</option>
+                    <option value="boolean">Evet / hayır</option>
+                    <option value="text">Kısa metin</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="catalogFieldSort">Sıra</label>
+                  <input id="catalogFieldSort" type="number" min="0" formControlName="sortOrder" />
+                </div>
+              </div>
+              <div class="checks">
+                <label><input type="checkbox" formControlName="required" /> Zorunlu</label>
+                <label><input type="checkbox" formControlName="active" /> Yayında</label>
+              </div>
+              @if (fieldIsNew() && selectedProduct()?.active && !fieldForm.controls.active.value) {
+                <p class="form-hint">
+                  Yayındaki ürüne eklenen yeni alan önce taslak kalır. Seçenekleri ekledikten sonra
+                  alanı yayınlayın.
+                </p>
+              }
+              @if (fieldForm.invalid && fieldForm.touched) {
+                <p class="form-error">Alan anahtarı veya public metin geçersiz.</p>
+              }
+              <div class="inline-actions">
+                <button type="submit" class="button primary compact" [disabled]="busy()">
+                  Alanı kaydet
+                </button>
+                @if (!fieldIsNew() && selectedField(); as field) {
+                  <button
+                    type="button"
+                    class="button secondary compact"
+                    [disabled]="busy()"
+                    (click)="toggleField(field)"
+                  >
+                    {{ field.active ? 'Yayından kaldır' : 'Yayınla' }}
+                  </button>
+                }
+              </div>
+            </form>
+          </section>
+
+          <section class="editor-card">
+            <div class="editor-title">
+              <div>
+                <p class="eyebrow">ALAN SEÇENEKLERİ</p>
+                <h3>Seçenekler</h3>
+              </div>
+              <button
+                type="button"
+                class="button secondary compact"
+                [disabled]="!selectedFieldId() || selectedField()?.field_type !== 'select'"
+                (click)="startNewOption()"
+              >
+                Seçenek ekle
+              </button>
+            </div>
+
+            @if (!selectedFieldId()) {
+              <p class="empty-note">Önce bir alan seçin.</p>
+            } @else if (selectedField()?.field_type !== 'select') {
+              <p class="empty-note">Bu alan türünde seçenek listesi kullanılmaz.</p>
+            } @else {
+              <div class="entity-list option-list">
+                @for (option of options(); track option.id) {
+                  <button
+                    type="button"
+                    class="entity-row"
+                    [class.inactive]="!option.active"
+                    [class.selected]="
+                      optionForm.controls.value.value === option.value && !optionIsNew()
+                    "
+                    (click)="selectOption(option)"
+                  >
+                    <span>
+                      <strong>{{ option.label }}</strong>
+                      <small>
+                        {{ option.value }} · sıra {{ option.sort_order }}
+                        @if (
+                          option.description ||
+                          option.features?.length ||
+                          option.section_image_urls?.length ||
+                          option.profile_spec
+                        ) {
+                          · ayrıntılı
+                        }
+                      </small>
+                    </span>
+                  </button>
+                }
+              </div>
+
+              <form class="stack-form" [formGroup]="optionForm" (ngSubmit)="saveOption()">
+                <div class="field">
+                  <label for="catalogOptionValue">Gönderilen değer</label>
+                  <input
+                    id="catalogOptionValue"
+                    type="text"
+                    formControlName="value"
+                    [readOnly]="!optionIsNew()"
+                  />
+                  <small class="form-hint">
+                    Örn. <code>anthracite</code>; küçük harf, rakam, tire veya alt çizgi kullanın.
+                  </small>
+                </div>
+                @if (canManageProfileSpec()) {
+                  <fieldset class="profile-spec-editor">
+                    <legend>Yapılandırılmış profil ölçüleri</legend>
+                    <p id="profile-spec-help" class="profile-spec-help">
+                      Balkon sistemi veya balkon profil serisinde bu değerler kasa, köşe, ara kayıt
+                      ve net cam dağılımını milimetreye göre çizmek için kullanılır. PVC kapı ve
+                      pencere profil serilerinde kasa, üst, alt ve ara kayıt ölçüleri çizime de
+                      uygulanır. Diğer ürünlerde teknik ölçü bilgisi olarak müşteriye gösterilir.
+                      Tüm ölçüleri milimetre olarak girin.
+                    </p>
+                    @if (profileSpecRequired()) {
+                      <label class="active-check profile-spec-toggle profile-spec-required">
+                        <input
+                          type="checkbox"
+                          checked
+                          disabled
+                          aria-describedby="profile-spec-help"
+                          aria-controls="profile-spec-fields"
+                        />
+                        Bu balkon sistemi için profil ölçüleri zorunlu
+                        <span>Zorunlu</span>
+                      </label>
+                    } @else {
+                      <label class="active-check profile-spec-toggle">
+                        <input
+                          type="checkbox"
+                          formControlName="profileSpecEnabled"
+                          aria-describedby="profile-spec-help"
+                          aria-controls="profile-spec-fields"
+                        />
+                        Bu profil serisi için teknik ölçüleri kullan
+                      </label>
+                    }
+
+                    @if (optionForm.controls.profileSpecEnabled.value) {
+                      <div
+                        id="profile-spec-fields"
+                        class="profile-spec-fields"
+                        [formGroup]="optionForm.controls.profileSpec"
+                      >
+                        <div class="field">
+                          <label for="profileEdgeMm">Kenar / kasa profili <span>mm</span></label>
+                          <input
+                            id="profileEdgeMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="500"
+                            step="1"
+                            formControlName="edge_profile_mm"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileMullionMm">Ara kayıt profili <span>mm</span></label>
+                          <input
+                            id="profileMullionMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="500"
+                            step="1"
+                            formControlName="mullion_profile_mm"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileCornerMm">L / U köşe profili <span>mm</span></label>
+                          <input
+                            id="profileCornerMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="500"
+                            step="1"
+                            formControlName="corner_profile_mm"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileTopMm">Üst profil <span>mm</span></label>
+                          <input
+                            id="profileTopMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="500"
+                            step="1"
+                            formControlName="top_profile_mm"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileBottomMm">Alt profil <span>mm</span></label>
+                          <input
+                            id="profileBottomMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="500"
+                            step="1"
+                            formControlName="bottom_profile_mm"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileMountingGapMm">Montaj boşluğu <span>mm</span></label>
+                          <input
+                            id="profileMountingGapMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="100"
+                            step="1"
+                            formControlName="mounting_gap_mm"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileMinGlassMm">Minimum net cam eni <span>mm</span></label>
+                          <input
+                            id="profileMinGlassMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="100"
+                            max="3000"
+                            step="1"
+                            formControlName="min_glass_width_mm"
+                            aria-describedby="profile-glass-order-help"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileTargetGlassMm"
+                            >Hedef net cam eni <span>mm</span></label
+                          >
+                          <input
+                            id="profileTargetGlassMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="100"
+                            max="3000"
+                            step="1"
+                            formControlName="target_glass_width_mm"
+                            aria-describedby="profile-glass-order-help"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileMaxGlassMm"
+                            >Maksimum net cam eni <span>mm</span></label
+                          >
+                          <input
+                            id="profileMaxGlassMm"
+                            type="number"
+                            inputmode="numeric"
+                            min="100"
+                            max="3000"
+                            step="1"
+                            formControlName="max_glass_width_mm"
+                            aria-describedby="profile-glass-order-help"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileMinPanels">Minimum panel adedi</label>
+                          <input
+                            id="profileMinPanels"
+                            type="number"
+                            inputmode="numeric"
+                            min="1"
+                            max="64"
+                            step="1"
+                            formControlName="min_panel_count"
+                            aria-describedby="profile-panel-order-help"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="profileMaxPanels">Maksimum panel adedi</label>
+                          <input
+                            id="profileMaxPanels"
+                            type="number"
+                            inputmode="numeric"
+                            min="1"
+                            max="64"
+                            step="1"
+                            formControlName="max_panel_count"
+                            aria-describedby="profile-panel-order-help"
+                          />
+                        </div>
+                        <small id="profile-glass-order-help" class="profile-spec-order-help">
+                          Net cam enleri minimum ≤ hedef ≤ maksimum sırasını izlemelidir.
+                        </small>
+                        <small id="profile-panel-order-help" class="profile-spec-order-help">
+                          Minimum panel adedi, maksimum panel adedinden büyük olamaz.
+                        </small>
+                      </div>
+                      @if (
+                        optionForm.controls.profileSpec.invalid &&
+                        optionForm.controls.profileSpec.touched
+                      ) {
+                        <p class="form-error" role="alert">
+                          Profil ölçülerini, cam eni sırasını ve panel sınırlarını kontrol edin.
+                        </p>
+                      }
+                    }
+                  </fieldset>
+                }
+                <div class="field">
+                  <label for="catalogOptionLabel">Müşterinin göreceği etiket</label>
+                  <input id="catalogOptionLabel" type="text" formControlName="label" />
+                </div>
+                <div class="option-detail-fields">
+                  <div class="field">
+                    <label for="catalogOptionDescription">Seçenek açıklaması</label>
+                    <textarea
+                      id="catalogOptionDescription"
+                      rows="4"
+                      formControlName="description"
+                    ></textarea>
+                    <small>Bu seçenek için müşteriye gösterilebilecek kısa bilgiyi yazın.</small>
+                  </div>
+                  <div class="field">
+                    <label for="catalogOptionFeatures">Özellikler ve teknik ölçü bilgileri</label>
+                    <textarea
+                      id="catalogOptionFeatures"
+                      rows="5"
+                      formControlName="featuresText"
+                      placeholder="Her satıra bir özellik veya teknik ölçü yazın"
+                    ></textarea>
+                    <small>
+                      En fazla 12 satır ekleyin. Örn. “76 mm profil derinliği”; her satır en fazla
+                      160 karakter olabilir.
+                    </small>
+                  </div>
+                  <div class="field">
+                    <label for="catalogOptionSectionImages">
+                      Örnek veya kesit görselleri <span>isteğe bağlı</span>
+                    </label>
+                    <textarea
+                      id="catalogOptionSectionImages"
+                      rows="4"
+                      formControlName="sectionImageUrlsText"
+                      placeholder="Her satıra bir HTTPS görsel adresi"
+                    ></textarea>
+                    <small>En fazla 4 adet HTTP/HTTPS görsel adresi ekleyebilirsiniz.</small>
+                  </div>
+                  @if (sectionImagePreviewUrls().length) {
+                    <div class="section-image-preview" aria-label="Seçenek görseli önizlemeleri">
+                      @for (
+                        imageUrl of sectionImagePreviewUrls();
+                        track imageUrl;
+                        let index = $index
+                      ) {
+                        <figure>
+                          <img
+                            [src]="imageUrl"
+                            [alt]="
+                              optionForm.controls.label.value + ' görsel önizlemesi ' + (index + 1)
+                            "
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </figure>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="field">
+                  <label for="catalogOptionSort">Sıra</label>
+                  <input id="catalogOptionSort" type="number" min="0" formControlName="sortOrder" />
+                </div>
+                <label class="active-check">
+                  <input type="checkbox" formControlName="active" />
+                  Seçenek yayında
+                </label>
+                @if (optionForm.invalid && optionForm.touched) {
+                  <p class="form-error">Değer ve public etiketi kontrol edin.</p>
+                }
+                <div class="inline-actions">
+                  <button type="submit" class="button primary compact" [disabled]="busy()">
+                    Seçeneği kaydet
+                  </button>
+                  @if (!optionIsNew()) {
+                    @for (option of options(); track option.id) {
+                      @if (option.value === optionForm.controls.value.value) {
+                        <button
+                          type="button"
+                          class="button secondary compact"
+                          [disabled]="busy()"
+                          (click)="toggleOption(option)"
+                        >
+                          {{ option.active ? 'Yayından kaldır' : 'Yayınla' }}
+                        </button>
+                      }
+                    }
+                  }
+                </div>
+              </form>
+            }
+          </section>
+        </div>
+      }
+    </div>
+  </div>
+}

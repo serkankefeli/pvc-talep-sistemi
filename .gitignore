@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+backend/build/
+*.egg-info/
+
+# Runtime data and secrets
+.env
+backend/.env.docker
+backend/data/
+*.db
+*.sqlite
+*.sqlite3
+logs/
+backend/uploads/branding/*
+!backend/uploads/branding/.gitkeep
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Generated artifacts
+artifacts/
+*.log
+
+# Bu projeye ait olmayan yerel dosyalar
+ibrahim_ethem_mesnevi_hikayesi.docx
+ibrahim_ethem_mesnevi_hikayesi_duzeltilmis.docx
+qa_ibrahim_ethem/
+
+# Ayri bir proje deposu (serkankefeli/koleksiyon), buraya klonlanmis
+backend/koleksiyon/
