@@ -23,6 +23,7 @@ export class InstallationSceneComponent {
   readonly productName = input<string>();
   readonly measurementVariant = input<CatalogMeasurement['variant']>('opening');
   readonly measurementReady = input(false);
+  readonly joinerySelectionReady = input(true);
   readonly balconySegmentIndex = input(0);
 
   readonly productLabel = computed(() => {
@@ -53,7 +54,10 @@ export class InstallationSceneComponent {
       ? calculateJoineryGeometry(item, { x: 0, y: 0, width: 100, height: 100 })
       : null;
   });
-  readonly joinerySummary = computed(
+  readonly joinerySummary = computed(() =>
+    this.joinerySelectionReady() ? this.joinerySummaryText() : '',
+  );
+  private readonly joinerySummaryText = computed(
     () =>
       this.joineryGeometry()
         ?.panels.map(({ panel }) => `${panel.label}: ${joineryPanelDescription(panel)}`)

@@ -143,7 +143,12 @@
                 @switch (field.field_type) {
                   @case ('select') {
                     <label [for]="'catalog-question-' + index">{{ field.label }}</label>
-                    <select [id]="'catalog-question-' + index" [formControlName]="field.key">
+                    <select
+                      [id]="'catalog-question-' + index"
+                      [formControlName]="field.key"
+                      [attr.aria-required]="field.required"
+                    >
+                      <option value="" disabled>Seçin</option>
                       @for (option of field.options; track option.id) {
                         <option [value]="option.value">{{ option.label }}</option>
                       }
@@ -191,6 +196,7 @@
               <div class="field plan-selector" [formGroup]="catalogForm()">
                 <label for="balcony-shape">{{ shapeField.label }}</label>
                 <select id="balcony-shape" formControlName="enclosure_shape">
+                  <option value="" disabled>Seçin</option>
                   @for (option of shapeField.options; track option.id) {
                     <option [value]="option.value">{{ option.label }}</option>
                   }
@@ -239,6 +245,7 @@
                     <div class="field">
                       <label [for]="'balcony-turn-' + index">Önceki cepheden sonra</label>
                       <select [id]="'balcony-turn-' + index" formControlName="turnDegrees">
+                        <option [ngValue]="null" disabled>Seçin</option>
                         @for (turn of balconyTurnOptions; track turn.value) {
                           <option [ngValue]="turn.value">{{ turn.label }}</option>
                         }
@@ -354,7 +361,12 @@
                 @case ('select') {
                   <div class="field">
                     <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
-                    <select [id]="'catalog-detail-' + index" [formControlName]="field.key">
+                    <select
+                      [id]="'catalog-detail-' + index"
+                      [formControlName]="field.key"
+                      [attr.aria-required]="field.required"
+                    >
+                      <option value="" disabled>Seçin</option>
                       @for (option of field.options; track option.id) {
                         <option [value]="option.value">{{ option.label }}</option>
                       }
@@ -454,6 +466,11 @@
               </div>
               <span>{{ joineryPanels().length }} bölüm</span>
             </div>
+            @if (joinerySelectionError()) {
+              <p class="error field-wide" role="alert">
+                Her kanat için önce çalışma biçimini, açılan kanatlar için menteşe tarafını seçin.
+              </p>
+            }
             <p class="joinery-editor-help">
               Seçtiğiniz standart düzen ölçünüze otomatik yerleşir. Her bölümün çalışma biçimini
               ayrı seçebilirsiniz; sağdaki çizim aynı anda güncellenir.
@@ -473,11 +490,18 @@
                     @if (joineryOpeningOptions().length) {
                       <select
                         [id]="'panel-opening-' + index"
-                        [value]="panel.opening"
                         (change)="updateJoineryPanelOpening(index, $any($event.target).value)"
                       >
+                        <option value="" [selected]="!joineryPanelOpeningValue(index)" disabled>
+                          Seçin
+                        </option>
                         @for (option of joineryOpeningOptions(); track option.value) {
-                          <option [value]="option.value">{{ option.label }}</option>
+                          <option
+                            [value]="option.value"
+                            [selected]="option.value === joineryPanelOpeningValue(index)"
+                          >
+                            {{ option.label }}
+                          </option>
                         }
                       </select>
                     } @else {
@@ -486,20 +510,27 @@
                       </p>
                     }
                   </div>
-                  @if (joineryPanelNeedsHinge(panel) && joineryHingeOptions().length) {
+                  @if (joineryPanelNeedsHinge(panel, index) && joineryHingeOptions().length) {
                     <div class="field">
                       <label [for]="'panel-hinge-' + index">Menteşe tarafı</label>
                       <select
                         [id]="'panel-hinge-' + index"
-                        [value]="panel.hinge"
                         (change)="updateJoineryPanelHinge(index, $any($event.target).value)"
                       >
+                        <option value="" [selected]="!joineryPanelHingeValue(index)" disabled>
+                          Seçin
+                        </option>
                         @for (option of joineryHingeOptions(); track option.value) {
-                          <option [value]="option.value">{{ option.label }}</option>
+                          <option
+                            [value]="option.value"
+                            [selected]="option.value === joineryPanelHingeValue(index)"
+                          >
+                            {{ option.label }}
+                          </option>
                         }
                       </select>
                     </div>
-                  } @else if (joineryPanelNeedsHinge(panel)) {
+                  } @else if (joineryPanelNeedsHinge(panel, index)) {
                     <p class="hinge-note">Menteşe seçeneği yönetici tarafından kapatıldı.</p>
                   } @else {
                     <p class="hinge-note">
@@ -537,8 +568,8 @@
                 formControlName="profileSeries"
                 aria-describedby="series-help"
               >
-                <option value="">
-                  {{ seriesField.required ? 'Bir seri seçin' : 'Uzman önerisi istiyorum' }}
+                <option value="" disabled>
+                  {{ seriesField.required ? 'Seçin' : 'Seçin (isteğe bağlı)' }}
                 </option>
                 @for (option of seriesField.options; track option.id) {
                   <option [value]="option.value">{{ option.label }}</option>
@@ -661,6 +692,7 @@
           [productName]="installationPreviewProductName()"
           [measurementVariant]="currentProduct().measurement.variant"
           [measurementReady]="measurementReady()"
+          [joinerySelectionReady]="!isJoinery() || joinerySelectionsComplete()"
           [balconySegmentIndex]="selectedBalconySegmentIndex()"
         />
         <p class="drawing-note">Bu temsili bir yerleşimdir; keşif ve imalat projesi değildir.</p>

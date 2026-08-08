@@ -67,6 +67,8 @@ interface UsageQuestion {
 }
 
 type OpeningSelection = 'none' | 'left' | 'right' | 'inward' | 'outward' | 'sliding';
+type JoineryPanelOpeningSelection = JoineryPanel['opening'] | '';
+type JoineryPanelHingeSelection = Exclude<JoineryPanel['hinge'], 'none'> | '';
 
 const JOINERY_OPENING_VALUES = new Set<JoineryPanel['opening']>([
   'fixed',
@@ -491,6 +493,7 @@ export class ConfiguratorComponent {
   readonly step = signal<1 | 2 | 3 | 4>(1);
   readonly submitting = signal(false);
   readonly submitError = signal<string | null>(null);
+  readonly joinerySelectionError = signal(false);
   readonly completion = signal<PublicRequestCreated | null>(null);
 
   readonly openings: readonly SelectOption<OpeningSelection>[] = [
@@ -658,6 +661,13 @@ export class ConfiguratorComponent {
   readonly catalogForm = signal(new FormRecord<FormControl<string | boolean>>({}));
   readonly catalogAnswers = signal<CatalogAnswers>({});
   readonly joineryPanels = signal<readonly JoineryPanel[]>([]);
+  /**
+   * The drawing keeps a safe, renderable panel model, while the form keeps
+   * the customer's explicit choices separately. This lets a select start at
+   * "Seçin" without inventing an opening or hinge in the request preview.
+   */
+  readonly joineryPanelSelections = signal<readonly JoineryPanelOpeningSelection[]>([]);
+  readonly joineryHingeSelections = signal<readonly JoineryPanelHingeSelection[]>([]);
   readonly currentItem = computed(() => this.buildItem(this.productValue()));
   readonly isBalcony = computed(() => this.productType() === 'balcony_enclosure');
   readonly selectedBalconySegmentIndex = signal(0);
@@ -811,6 +821,28 @@ export class ConfiguratorComponent {
     });
   });
 
+  readonly joinerySelectionsComplete = computed(() => {
+    const panels = this.joineryPanels();
+    const openings = this.joineryPanelSelections();
+    const hinges = this.joineryHingeSelections();
+    if (this.joineryOpeningOptions().length === 0) {
+      return true;
+    }
+    const hingeSelectionAvailable = this.joineryHingeOptions().length > 0;
+    return (
+      panels.length > 0 &&
+      panels.every((_panel, index) => {
+        const opening = openings[index];
+        if (!opening) {
+          return false;
+        }
+        return opening !== 'turn' && opening !== 'tilt_turn'
+          ? true
+          : !hingeSelectionAvailable || Boolean(hinges[index]);
+      })
+    );
+  });
+
   profileSpecEntries(spec: BalconyProfileSpec): readonly ProfileSpecEntry[] {
     return PROFILE_SPEC_LABELS.map((entry) => ({
       ...entry,
@@ -876,7 +908,7 @@ export class ConfiguratorComponent {
     }
     const index = this.balconySegments.length;
     this.balconySegments.push(
-      this.createBalconySegment(this.balconySegmentLabel(index, this.selectedBalconyShape()), 90),
+      this.createBalconySegment(this.balconySegmentLabel(index, this.selectedBalconyShape()), null),
     );
     this.syncBalconyWidth();
   }
@@ -908,12 +940,21 @@ export class ConfiguratorComponent {
     this.syncBalconyWidth();
   }
 
-  joineryPanelNeedsHinge(panel: JoineryPanel): boolean {
-    return panel.opening === 'turn' || panel.opening === 'tilt_turn';
+  joineryPanelNeedsHinge(panel: JoineryPanel, index?: number): boolean {
+    const opening = index === undefined ? panel.opening : this.joineryPanelSelections()[index];
+    return opening === 'turn' || opening === 'tilt_turn';
+  }
+
+  joineryPanelOpeningValue(index: number): JoineryPanelOpeningSelection {
+    return this.joineryPanelSelections()[index] ?? '';
+  }
+
+  joineryPanelHingeValue(index: number): JoineryPanelHingeSelection {
+    return this.joineryHingeSelections()[index] ?? '';
   }
 
   updateJoineryPanelOpening(index: number, value: string): void {
-    if (!JOINERY_OPENING_VALUES.has(value as JoineryPanel['opening'])) {
+    if (value !== '' && !JOINERY_OPENING_VALUES.has(value as JoineryPanel['opening'])) {
       return;
     }
     const panels = [...this.joineryPanels()];
@@ -921,37 +962,52 @@ export class ConfiguratorComponent {
     if (!panel) {
       return;
     }
+    const openingSelections = [...this.joineryPanelSelections()];
+    const hingeSelections = [...this.joineryHingeSelections()];
+    this.joinerySelectionError.set(false);
+    openingSelections[index] = value as JoineryPanelOpeningSelection;
+    hingeSelections[index] = '';
+    if (!value) {
+      panels[index] = { ...panel, opening: 'fixed', hinge: 'none' };
+      this.joineryPanelSelections.set(openingSelections);
+      this.joineryHingeSelections.set(hingeSelections);
+      this.joineryPanels.set(panels);
+      return;
+    }
     const opening = value as JoineryPanel['opening'];
-    const needsHinge = opening === 'turn' || opening === 'tilt_turn';
-    const hinge = needsHinge
-      ? panel.hinge === 'left' || panel.hinge === 'right'
-        ? panel.hinge
-        : this.preferredJoineryHinge()
-      : 'none';
-    panels[index] = { ...panel, opening, hinge };
+    panels[index] = { ...panel, opening, hinge: 'none' };
+    this.joineryPanelSelections.set(openingSelections);
+    this.joineryHingeSelections.set(hingeSelections);
     this.joineryPanels.set(panels);
   }
 
   updateJoineryPanelHinge(index: number, value: string): void {
-    if (value !== 'left' && value !== 'right') {
+    if (value !== '' && value !== 'left' && value !== 'right') {
       return;
     }
     const panels = [...this.joineryPanels()];
     const panel = panels[index];
-    if (!panel || !this.joineryPanelNeedsHinge(panel)) {
+    if (!panel || !this.joineryPanelNeedsHinge(panel, index)) {
       return;
     }
-    panels[index] = { ...panel, hinge: value };
+    const hingeSelections = [...this.joineryHingeSelections()];
+    this.joinerySelectionError.set(false);
+    hingeSelections[index] = value as JoineryPanelHingeSelection;
+    panels[index] = { ...panel, hinge: value === '' ? 'none' : (value as 'left' | 'right') };
+    this.joineryHingeSelections.set(hingeSelections);
     this.joineryPanels.set(panels);
   }
 
   goToContact(): void {
     this.productForm.markAllAsTouched();
     this.catalogForm().markAllAsTouched();
-    if (this.productForm.invalid || this.catalogForm().invalid) {
+    const joineryIncomplete = this.isJoinery() && !this.joinerySelectionsComplete();
+    this.joinerySelectionError.set(joineryIncomplete);
+    if (this.productForm.invalid || this.catalogForm().invalid || joineryIncomplete) {
       return;
     }
     this.submitError.set(null);
+    this.joinerySelectionError.set(false);
     this.step.set(3);
     this.focusStepHeading();
   }
@@ -971,6 +1027,7 @@ export class ConfiguratorComponent {
       return;
     }
     this.submitError.set(null);
+    this.joinerySelectionError.set(false);
     this.step.set(targetStep);
     this.focusStepHeading();
   }
@@ -1068,6 +1125,8 @@ export class ConfiguratorComponent {
       this.catalogForm.set(form);
       this.catalogAnswers.set({});
       this.joineryPanels.set([]);
+      this.joineryPanelSelections.set([]);
+      this.joineryHingeSelections.set([]);
       return;
     }
     this.configureProfileSeries(product);
@@ -1076,12 +1135,7 @@ export class ConfiguratorComponent {
       if (!isSafeCatalogKey(field.key) || field.key === 'notes' || field.key === 'profile_series') {
         continue;
       }
-      const initialValue =
-        field.field_type === 'boolean'
-          ? false
-          : field.field_type === 'select'
-            ? (field.options[0]?.value ?? '')
-            : '';
+      const initialValue = field.field_type === 'boolean' ? false : '';
       const validators =
         field.required && field.field_type !== 'boolean' ? [Validators.required] : [];
       if (field.field_type === 'text') {
@@ -1095,7 +1149,6 @@ export class ConfiguratorComponent {
         }),
       );
     }
-    this.applyJoineryLayoutDefaults(type, product, form);
     this.catalogForm.set(form);
     const initialAnswers = this.sanitizeAnswers(product, form.getRawValue());
     this.catalogAnswers.set(initialAnswers);
@@ -1112,7 +1165,6 @@ export class ConfiguratorComponent {
         const previousAnswers = this.catalogAnswers();
         let answers = this.sanitizeAnswers(product, form.getRawValue());
         if (answers['layout'] !== previousAnswers['layout']) {
-          this.applyJoineryLayoutDefaults(type, product, form);
           answers = this.sanitizeAnswers(product, form.getRawValue());
         }
         const previousShape = this.catalogAnswers()['enclosure_shape'];
@@ -1136,66 +1188,23 @@ export class ConfiguratorComponent {
     );
   }
 
-  private applyJoineryLayoutDefaults(
-    type: string,
-    product: CatalogProduct,
-    form: FormRecord<FormControl<string | boolean>>,
-  ): void {
-    if (type !== 'pvc_window' && type !== 'pvc_door') {
-      return;
-    }
-    const layoutValue = form.controls['layout']?.value;
-    const layout = typeof layoutValue === 'string' ? layoutValue : '';
-    const recommendedOpening =
-      layout === 'fixed'
-        ? 'fixed'
-        : layout === 'tilt_turn'
-          ? 'tilt_turn'
-          : layout === 'sliding'
-            ? 'sliding'
-            : 'turn';
-    const mechanismField = product.fields.find(
-      (field) => field.key === 'opening_mechanism' && field.field_type === 'select',
-    );
-    if (mechanismField?.options.some((option) => option.value === recommendedOpening)) {
-      form.controls['opening_mechanism']?.setValue(recommendedOpening, { emitEvent: false });
-    }
-
-    const directionField = product.fields.find(
-      (field) => field.key === 'opening_direction' && field.field_type === 'select',
-    );
-    const directionControl = form.controls['opening_direction'];
-    if (!directionControl || !directionField) {
-      return;
-    }
-    const direction = directionControl.value;
-    if (
-      recommendedOpening !== 'fixed' &&
-      direction === 'none' &&
-      directionField.options.some((option) => option.value === 'right')
-    ) {
-      directionControl.setValue('right', { emitEvent: false });
-    } else if (
-      recommendedOpening === 'fixed' &&
-      directionField.options.some((option) => option.value === 'none')
-    ) {
-      directionControl.setValue('none', { emitEvent: false });
-    }
-  }
-
   private syncJoineryPanels(type: string, answers: CatalogAnswers): void {
     if (type !== 'pvc_window' && type !== 'pvc_door') {
       this.joineryPanels.set([]);
+      this.joineryPanelSelections.set([]);
+      this.joineryHingeSelections.set([]);
+      this.joinerySelectionError.set(false);
       return;
     }
     const rawLayout = answers['layout'];
-    const layout = (
-      typeof rawLayout === 'string' && rawLayout
-        ? rawLayout
-        : type === 'pvc_window'
-          ? 'single_sash'
-          : 'single'
-    ) as JoineryLayout;
+    if (typeof rawLayout !== 'string' || !rawLayout) {
+      this.joineryPanels.set([]);
+      this.joineryPanelSelections.set([]);
+      this.joineryHingeSelections.set([]);
+      this.joinerySelectionError.set(false);
+      return;
+    }
+    const layout = rawLayout as JoineryLayout;
     const rawOpening = answers['opening_mechanism'];
     const fallbackOpening: JoineryPanel['opening'] =
       layout === 'fixed'
@@ -1212,12 +1221,18 @@ export class ConfiguratorComponent {
         : fallbackOpening;
     const rawHinge = answers['opening_direction'];
     const hinge = rawHinge === 'left' || rawHinge === 'right' ? rawHinge : 'right';
-    this.joineryPanels.set(buildJoineryPanels(type, layout, opening, hinge));
-  }
-
-  private preferredJoineryHinge(): 'left' | 'right' {
-    const value = this.catalogAnswers()['opening_direction'];
-    return value === 'left' ? 'left' : 'right';
+    const panels = buildJoineryPanels(type, layout, opening, hinge);
+    this.joineryPanels.set(panels);
+    this.joineryPanelSelections.set(panels.map((panel) => panel.opening));
+    this.joineryHingeSelections.set(
+      panels.map((panel) =>
+        panel.opening === 'turn' || panel.opening === 'tilt_turn'
+          ? panel.hinge === 'left' || panel.hinge === 'right'
+            ? panel.hinge
+            : ''
+          : '',
+      ),
+    );
   }
 
   private sanitizeAnswers(
@@ -1429,7 +1444,7 @@ export class ConfiguratorComponent {
         layout,
         opening_direction: opening,
         glazing: this.catalogString('glazing', value.glazing),
-        panels: this.joineryPanels(),
+        panels: this.previewJoineryPanels('pvc_window', layout),
         divisions:
           layout === 'double_sash'
             ? [{ axis: 'vertical', position_percent: 50 }]
@@ -1483,7 +1498,7 @@ export class ConfiguratorComponent {
         opening_direction: opening,
         glazing: this.catalogString('glazing', value.glazing),
         threshold: this.catalogString('threshold', value.threshold),
-        panels: this.joineryPanels(),
+        panels: this.previewJoineryPanels('pvc_door', layout),
         divisions:
           layout === 'double' || layout === 'sliding'
             ? [{ axis: 'vertical', position_percent: 50 }]
@@ -1585,6 +1600,21 @@ export class ConfiguratorComponent {
     return typeof value === 'string' && value ? value : fallback;
   }
 
+  private previewJoineryPanels(
+    productType: 'pvc_window' | 'pvc_door',
+    layout: JoineryLayout,
+  ): readonly JoineryPanel[] {
+    const panels = this.joineryPanels();
+    if (panels.length) {
+      return panels;
+    }
+    return buildJoineryPanels(productType, layout, 'fixed', 'none').map((panel) => ({
+      ...panel,
+      opening: 'fixed',
+      hinge: 'none',
+    }));
+  }
+
   private requestCatalogAnswers(productType: string): CatalogAnswers {
     const answers = { ...this.catalogAnswers() };
     if (productType !== 'pvc_window' && productType !== 'pvc_door') {
@@ -1592,16 +1622,17 @@ export class ConfiguratorComponent {
     }
 
     const panel = this.joineryPanels()[0];
-    if (!panel) {
+    const selectedOpening = this.joineryPanelSelections()[0];
+    if (!panel || !selectedOpening) {
       return answers;
     }
 
-    answers['opening_mechanism'] = panel.opening;
-    if (panel.opening === 'sliding' && productType === 'pvc_door') {
+    answers['opening_mechanism'] = selectedOpening;
+    if (selectedOpening === 'sliding' && productType === 'pvc_door') {
       answers['opening_direction'] = 'sliding';
-    } else if (panel.hinge === 'left' || panel.hinge === 'right') {
-      answers['opening_direction'] = panel.hinge;
-    } else if (productType === 'pvc_window' && panel.opening === 'fixed') {
+    } else if (this.joineryHingeSelections()[0]) {
+      answers['opening_direction'] = this.joineryHingeSelections()[0];
+    } else if (productType === 'pvc_window' && selectedOpening === 'fixed') {
       answers['opening_direction'] = 'none';
     }
     return answers;
@@ -1639,7 +1670,7 @@ export class ConfiguratorComponent {
     return trimmed ? trimmed : null;
   }
 
-  private createBalconySegment(label: string, turnDegrees: -90 | 0 | 90) {
+  private createBalconySegment(label: string, turnDegrees: -90 | 0 | 90 | null) {
     return this.fb.group({
       label: this.fb.control(label, [Validators.required, Validators.maxLength(40)]),
       widthMm: new FormControl<number | null>(null, [
@@ -1647,7 +1678,7 @@ export class ConfiguratorComponent {
         Validators.min(turnDegrees === 0 ? 1000 : 300),
         Validators.max(30_000),
       ]),
-      turnDegrees: this.fb.control<-90 | 0 | 90>(turnDegrees, [
+      turnDegrees: new FormControl<-90 | 0 | 90 | null>(turnDegrees, [
         Validators.required,
         Validators.min(-90),
         Validators.max(90),
@@ -1672,7 +1703,7 @@ export class ConfiguratorComponent {
     while (this.balconySegments.length < targetCount) {
       const index = this.balconySegments.length;
       this.balconySegments.push(
-        this.createBalconySegment(this.balconySegmentLabel(index, shape), index === 0 ? 0 : 90),
+        this.createBalconySegment(this.balconySegmentLabel(index, shape), index === 0 ? 0 : null),
         { emitEvent: false },
       );
     }
@@ -1685,7 +1716,7 @@ export class ConfiguratorComponent {
       if (index === 0) {
         control.controls.turnDegrees.setValue(0, { emitEvent: false });
       } else if (KNOWN_BALCONY_SHAPES.has(shape)) {
-        control.controls.turnDegrees.setValue(90, { emitEvent: false });
+        control.controls.turnDegrees.setValue(null, { emitEvent: false });
       }
     });
     this.balconySegments.updateValueAndValidity({ emitEvent: true });

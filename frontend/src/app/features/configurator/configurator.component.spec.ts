@@ -77,6 +77,22 @@ describe('ConfiguratorComponent public boundary', () => {
     expect((element.querySelector('#height') as HTMLInputElement).value).toBe('');
   });
 
+  it('starts managed select fields at the explicit Seçin state', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const firstQuestion = element.querySelector<HTMLSelectElement>('#catalog-question-0');
+    const firstDetail = element.querySelector<HTMLSelectElement>('#catalog-detail-0');
+
+    expect(firstQuestion?.value).toBe('');
+    expect(firstDetail?.value).toBe('');
+    expect(element.textContent).toContain('Seçin');
+    expect(component.catalogForm().invalid).toBe(true);
+  });
+
   it('places the product only after both measurements are valid', () => {
     const fixture = TestBed.createComponent(ConfiguratorComponent);
     const component = fixture.componentInstance;
@@ -126,10 +142,67 @@ describe('ConfiguratorComponent public boundary', () => {
     expect(element.textContent).toContain('PVC kapı + pencere');
   });
 
+  it('keeps a fixed right sash selection in the live window drawing', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+
+    component.catalogForm().controls['layout']?.setValue('double_sash');
+    component.catalogForm().controls['opening_mechanism']?.setValue('tilt_turn');
+    component.catalogForm().controls['opening_direction']?.setValue('right');
+    component.productForm.patchValue({ width: 2000, height: 1450 });
+    fixture.detectChanges();
+
+    const openingSelect = (fixture.nativeElement as HTMLElement).querySelector(
+      '#panel-opening-1',
+    ) as HTMLSelectElement | null;
+    expect(openingSelect).toBeTruthy();
+    openingSelect!.value = 'fixed';
+    openingSelect!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const item = component.currentItem();
+    expect(item.product_type).toBe('pvc_window');
+    if (item.product_type === 'pvc_window' && 'layout' in item) {
+      expect(item.panels?.[1]?.slot).toBe('right_window');
+      expect(item.panels?.[1]?.opening).toBe('fixed');
+      expect(item.panels?.[1]?.hinge).toBe('none');
+    }
+
+    const element = fixture.nativeElement as HTMLElement;
+    const rightPanel = element.querySelector(
+      'app-installation-scene [data-panel-slot="right_window"]',
+    );
+    expect(rightPanel?.getAttribute('data-panel-opening')).toBe('fixed');
+    expect(element.querySelector('#panel-hinge-1')).toBeNull();
+    expect(element.querySelector('.joinery-summary')?.textContent).toContain('Sağ kanat: Sabit');
+  });
+
+  it('starts a double-sash layout with a turn opening on each sash', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    component.catalogForm().controls['layout']?.setValue('double_sash');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(component.joineryPanelSelections()).toEqual(['turn', 'turn']);
+    expect((element.querySelector('#panel-opening-0') as HTMLSelectElement)?.value).toBe('turn');
+    expect((element.querySelector('#panel-opening-1') as HTMLSelectElement)?.value).toBe('turn');
+    expect((element.querySelector('#panel-hinge-0') as HTMLSelectElement)?.value).toBe('left');
+    expect((element.querySelector('#panel-hinge-1') as HTMLSelectElement)?.value).toBe('right');
+    expect(component.joinerySelectionsComplete()).toBe(true);
+    const item = component.currentItem();
+    if ('panels' in item) {
+      expect(item.panels?.every((panel) => panel.opening === 'turn')).toBe(true);
+    }
+  });
+
   it('uses one panel card as the source of truth for a single door', () => {
     const fixture = TestBed.createComponent(ConfiguratorComponent);
     const component = fixture.componentInstance;
     component.selectProduct('pvc_door');
+    component.catalogForm().controls['layout']?.setValue('single');
     component.catalogForm().controls['glazing']?.setValue('panel');
     component.updateJoineryPanelOpening(0, 'turn');
     component.updateJoineryPanelHinge(0, 'left');
@@ -568,6 +641,7 @@ describe('ConfiguratorComponent public boundary', () => {
     component.catalogForm().controls['roof_required']?.setValue(true);
     component.balconySegments.at(0).controls.widthMm.setValue(4000);
     component.balconySegments.at(1).controls.widthMm.setValue(1800);
+    component.balconySegments.at(1).controls.turnDegrees.setValue(90);
     component.productForm.patchValue({ height: 1600 });
 
     const item = component.currentItem();
@@ -613,6 +687,7 @@ describe('ConfiguratorComponent public boundary', () => {
     const fixture = TestBed.createComponent(ConfiguratorComponent);
     const component = fixture.componentInstance;
     component.selectProduct('balcony_enclosure');
+    component.catalogForm().controls['system_type']?.setValue('sliding');
     fixture.detectChanges();
 
     const profileDetail = component
@@ -715,6 +790,7 @@ describe('ConfiguratorComponent public boundary', () => {
     expect(component.measurementReady()).toBe(false);
 
     component.balconySegments.at(1).controls.widthMm.setValue(1600);
+    component.balconySegments.at(1).controls.turnDegrees.setValue(90);
     expect(component.measurementReady()).toBe(true);
   });
 
@@ -848,6 +924,11 @@ describe('ConfiguratorComponent public boundary', () => {
     expect(element.querySelectorAll('[innerhtml]')).toHaveLength(0);
 
     component.productForm.patchValue({ width: 1200, height: 1400 });
+    for (const field of component.currentProduct().fields) {
+      if (field.field_type === 'select' && field.options[0]) {
+        component.catalogForm().controls[field.key]?.setValue(field.options[0].value);
+      }
+    }
     component.goToContact();
     fixture.detectChanges();
     const previewSvg = element.querySelector('app-product-preview svg');
