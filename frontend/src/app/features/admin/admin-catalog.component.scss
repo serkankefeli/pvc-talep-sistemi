@@ -65,7 +65,7 @@
 .state-card,
 .editor-card,
 .product-sidebar {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
 }
@@ -91,7 +91,7 @@
 
 .side-title {
   align-items: center;
-  background: #f4f7f5;
+  background: var(--surface-subtle);
   display: flex;
   justify-content: space-between;
   padding: 0.8rem 1rem;
@@ -110,7 +110,7 @@
 .product-row,
 .entity-row {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 0;
   border-top: 1px solid var(--line);
   color: var(--ink);
@@ -233,7 +233,7 @@
 
 .entity-row-wrap {
   align-items: stretch;
-  background: #fff;
+  background: var(--surface);
   border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -263,7 +263,7 @@
 
 .option-row-action {
   align-self: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid #b9d0c7;
   border-radius: 999px;
   color: var(--forest);
@@ -348,7 +348,7 @@
 }
 
 .profile-spec-toggle {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   padding: 0.65rem 0.75rem;
@@ -402,7 +402,7 @@
 }
 
 .section-image-preview figure {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   margin: 0;
@@ -419,7 +419,7 @@
 
 .visual-icon-preview {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid #cbdcd4;
   border-radius: 0.65rem;
   display: flex;

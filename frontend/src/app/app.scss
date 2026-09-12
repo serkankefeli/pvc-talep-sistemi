@@ -6,7 +6,7 @@
 
 .site-header {
   align-items: center;
-  background: rgba(250, 252, 251, 0.94);
+  background: var(--header-background);
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
@@ -42,7 +42,7 @@
 }
 
 .brand-logo {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   overflow: hidden;
   width: clamp(3.2rem, 8vw, 5.5rem);
@@ -87,6 +87,31 @@ nav a.active {
   color: var(--forest);
 }
 
+.theme-toggle {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--forest-strong);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 0.35rem;
+  min-height: 2.45rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.theme-toggle:hover {
+  background: var(--forest-soft);
+  border-color: var(--brand-primary);
+}
+
+.theme-toggle > span:first-child {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
 main {
   flex: 1;
 }
@@ -105,6 +130,10 @@ main {
   }
 
   nav a:first-child {
+    display: none;
+  }
+
+  .theme-toggle-label {
     display: none;
   }
 }

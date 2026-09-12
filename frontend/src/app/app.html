@@ -20,6 +20,16 @@
       Talep oluştur
     </a>
     <a routerLink="/admin">Yönetim</a>
+    <button
+      type="button"
+      class="theme-toggle"
+      (click)="toggleTheme()"
+      [attr.aria-label]="theme() === 'dark' ? 'Açık temaya geç' : 'Gece moduna geç'"
+      [attr.title]="theme() === 'dark' ? 'Açık tema' : 'Gece modu'"
+    >
+      <span aria-hidden="true">{{ theme() === 'dark' ? '☀' : '☾' }}</span>
+      <span class="theme-toggle-label">{{ theme() === 'dark' ? 'Açık' : 'Gece' }}</span>
+    </button>
   </nav>
 </header>
 

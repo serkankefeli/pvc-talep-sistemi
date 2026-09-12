@@ -1,5 +1,5 @@
 .measurement-card {
-  background: #f4f7f5;
+  background: var(--surface-subtle);
   border: 1px solid var(--line);
   border-radius: 1rem;
   overflow: hidden;
@@ -21,7 +21,7 @@
 }
 
 .guide-heading > span {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--forest);
@@ -52,7 +52,7 @@ svg {
 
 .opening {
   fill: #d8e9e8;
-  stroke: #123c32;
+  stroke: var(--forest);
   stroke-width: 4;
 }
 

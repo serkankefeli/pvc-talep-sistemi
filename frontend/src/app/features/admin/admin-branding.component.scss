@@ -44,7 +44,7 @@
 .form-card,
 .upload-card,
 .state-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
   margin: 0;
@@ -88,7 +88,7 @@
 }
 
 .logo-frame {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   flex-basis: 4.5rem;
   width: 4.5rem;

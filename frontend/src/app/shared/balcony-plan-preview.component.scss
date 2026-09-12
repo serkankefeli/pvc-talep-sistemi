@@ -4,7 +4,7 @@
 }
 
 .plan-shell {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid #d6dfda;
   border-radius: 0.9rem;
   margin: 1rem 0;
@@ -187,7 +187,7 @@
 }
 
 .plan-measures li {
-  background: #f4f7f5;
+  background: var(--surface-subtle);
   border: 1px solid transparent;
   border-radius: 0.45rem;
   display: flex;

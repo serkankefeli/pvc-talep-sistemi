@@ -1,21 +1,49 @@
 :root {
-  --forest: #123c32;
-  --forest-strong: #0b2b24;
-  --forest-soft: #e2ece7;
-  --ink: #18201e;
-  --muted-strong: #56615e;
-  --muted: #77817e;
-  --line: #e2e7e4;
-  --line-strong: #c9d1cd;
-  --cream: #f4f0e5;
+  --brand-primary: #1976b6;
+  --brand-deep: #153c5f;
+  --page-background: #f5f7fa;
+  --surface: #ffffff;
+  --surface-subtle: #eef4f8;
+  --surface-hover: #e6f1f8;
+  --header-background: rgba(255, 255, 255, 0.94);
+  --forest: var(--brand-primary);
+  --forest-strong: var(--brand-deep);
+  --forest-soft: #e3f0f8;
+  --ink: #153c5f;
+  --muted-strong: #4f6679;
+  --muted: #718495;
+  --line: #dce5ec;
+  --line-strong: #bfceda;
+  --cream: #edf4f9;
   --danger: #a63b30;
-  --shadow: 0 24px 70px rgba(17, 48, 40, 0.08);
+  --shadow: 0 24px 70px rgba(21, 60, 95, 0.1);
   --font-body: Inter, 'Segoe UI', Arial, sans-serif;
   --font-display: 'Arial Narrow', 'Segoe UI', Arial, sans-serif;
   color-scheme: light;
   font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-theme='dark'] {
+  --brand-primary: #4aa3df;
+  --brand-deep: #1976b6;
+  --page-background: #0b1926;
+  --surface: #102638;
+  --surface-subtle: #162f43;
+  --surface-hover: #1b3b53;
+  --header-background: rgba(11, 25, 38, 0.94);
+  --forest: var(--brand-primary);
+  --forest-strong: #75bce8;
+  --forest-soft: #173a53;
+  --ink: #f2f7fb;
+  --muted-strong: #bfd0dd;
+  --muted: #93a9ba;
+  --line: #29475e;
+  --line-strong: #3b5d75;
+  --cream: #18344a;
+  --danger: #ff9188;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
 }
 
 *,
@@ -25,7 +53,7 @@
 }
 
 html {
-  background: #f8faf8;
+  background: var(--page-background);
   color: var(--ink);
   min-width: 320px;
   scroll-behavior: smooth;
@@ -33,9 +61,21 @@ html {
 
 body {
   background:
-    radial-gradient(circle at 8% 5%, rgba(202, 221, 211, 0.42), transparent 24rem), #f8faf8;
+    radial-gradient(circle at 8% 5%, rgb(25 118 182 / 0.12), transparent 24rem),
+    var(--page-background);
   margin: 0;
   min-height: 100dvh;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
 }
 
 button,
@@ -54,7 +94,7 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid rgba(18, 60, 50, 0.36);
+  outline: 3px solid rgb(25 118 182 / 0.38);
 }
 
 h1,
@@ -95,7 +135,7 @@ h3 {
 .field input,
 .field select,
 .field textarea {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 0.65rem;
   color: var(--ink);
@@ -114,7 +154,7 @@ h3 {
 .field select:focus,
 .field textarea:focus {
   border-color: var(--forest);
-  box-shadow: 0 0 0 3px rgba(18, 60, 50, 0.1);
+  box-shadow: 0 0 0 3px rgb(25 118 182 / 0.14);
   outline: 0;
 }
 
@@ -158,13 +198,13 @@ h3 {
 }
 
 .button.secondary {
-  background: #fff;
+  background: var(--surface);
   border-color: var(--line-strong);
   color: var(--ink);
 }
 
 .button.secondary:hover:not(:disabled) {
-  background: #f2f5f3;
+  background: var(--surface-hover);
 }
 
 .button.danger {

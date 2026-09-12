@@ -185,7 +185,7 @@ text {
 
 .joinery-legend li {
   align-items: baseline;
-  background: #f3f6f4;
+  background: var(--surface-subtle);
   border: 1px solid rgb(23 63 54 / 0.14);
   border-radius: 999px;
   color: #364d48;
@@ -212,7 +212,7 @@ text {
 }
 
 .balcony-elevation-summary article {
-  background: #f3f6f4;
+  background: var(--surface-subtle);
   border: 1px solid rgb(23 63 54 / 0.14);
   border-radius: 0.75rem;
   color: #364d48;

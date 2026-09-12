@@ -52,7 +52,7 @@
 
 .favorite-button {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted-strong);
@@ -104,7 +104,7 @@
 }
 
 .status {
-  background: #edf1ef;
+  background: var(--surface-subtle);
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--muted-strong);
@@ -177,7 +177,7 @@
 
 .panel,
 .state-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
   padding: 1.35rem;
@@ -196,7 +196,7 @@
 }
 
 .record-timing dl > div {
-  background: #f6f8f7;
+  background: var(--surface-subtle);
   border: 1px solid #e3e9e6;
   border-radius: 0.75rem;
   min-width: 0;
@@ -375,7 +375,7 @@ dd a {
 
 .action-message,
 .email-warning {
-  background: #edf3f0;
+  background: var(--surface-subtle);
   border-radius: 0.55rem;
   color: var(--forest);
   font-size: 0.75rem;

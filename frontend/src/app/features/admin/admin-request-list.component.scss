@@ -87,7 +87,7 @@
 .table-shell,
 .request-card,
 .state-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
 }
@@ -131,7 +131,7 @@
 }
 
 .navigation-title-row span {
-  background: #eef2f0;
+  background: var(--surface-subtle);
   border-radius: 999px;
   margin: 0 0.4rem 0.35rem 0;
   padding: 0.15rem 0.4rem;
@@ -221,7 +221,7 @@
 
 .recent-list button:hover,
 .recent-list button.active {
-  background: #f1f5f3;
+  background: var(--surface-subtle);
   color: var(--forest);
 }
 
@@ -293,7 +293,7 @@
 }
 
 .compact-field select {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 0.65rem;
   color: var(--ink);
@@ -308,7 +308,7 @@
 }
 
 .view-switch {
-  background: #eef2f0;
+  background: var(--surface-subtle);
   border-radius: 0.65rem;
   display: flex;
   padding: 0.2rem;
@@ -333,7 +333,7 @@
 }
 
 .view-switch button.active {
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 2px 8px rgb(20 48 41 / 0.1);
   color: var(--forest);
 }
@@ -344,7 +344,7 @@
 
 .columns-menu summary {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 0.65rem;
   color: var(--muted-strong);
@@ -361,7 +361,7 @@
 }
 
 .columns-popover {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   box-shadow: 0 14px 35px rgb(18 47 40 / 0.16);
@@ -422,7 +422,7 @@ table {
 }
 
 th {
-  background: #f4f7f5;
+  background: var(--surface-subtle);
   color: var(--muted-strong);
   font-size: 0.58rem;
   letter-spacing: 0.07em;
@@ -444,7 +444,7 @@ tr {
 
 tbody tr:hover,
 tbody tr.selected {
-  background: #f4f8f6;
+  background: var(--surface-subtle);
 }
 
 tbody tr.selected td:first-child {
@@ -538,7 +538,7 @@ td > small,
 }
 
 .status {
-  background: #edf1ef;
+  background: var(--surface-subtle);
   border-radius: 999px;
   color: #4e5b57;
   display: inline-block;
@@ -715,7 +715,7 @@ td > small,
 }
 
 .page-button {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   color: var(--forest);
@@ -801,7 +801,7 @@ td > small,
 }
 
 .status-track li > span {
-  background: #fff;
+  background: var(--surface);
   border: 2px solid var(--line-strong);
   border-radius: 50%;
   height: 0.7rem;
@@ -888,7 +888,7 @@ td > small,
 
 .position-tabs button {
   align-items: center;
-  background: #f3f6f4;
+  background: var(--surface-subtle);
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   color: var(--muted-strong);
@@ -903,7 +903,7 @@ td > small,
 
 .position-tabs button span {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border-radius: 50%;
   display: inline-flex;
   height: 1.15rem;
@@ -918,7 +918,7 @@ td > small,
 }
 
 .drawing-card {
-  background: #f7f9f8;
+  background: var(--surface-subtle);
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   margin-top: 0.65rem;
