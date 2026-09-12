@@ -61,6 +61,36 @@ describe('ConfiguratorComponent public boundary', () => {
     ]);
   });
 
+  it('branches product selection into PVC and aluminium categories', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelectorAll('.material-card')).toHaveLength(2);
+    expect(element.querySelectorAll('.product-card')).toHaveLength(0);
+
+    component.selectMaterialGroup('pvc');
+    fixture.detectChanges();
+    expect(component.visibleProductChoices().map((product) => product.key)).toEqual([
+      'pvc_window',
+      'pvc_door',
+      'flyscreen',
+    ]);
+    expect(element.textContent).toContain('PVC Doğrama');
+    expect(element.textContent).not.toContain('Giyotin cam');
+
+    component.selectMaterialGroup('aluminium');
+    fixture.detectChanges();
+    expect(component.visibleProductChoices().map((product) => product.key)).toEqual([
+      'guillotine_glass',
+      'facade_cladding',
+      'balcony_enclosure',
+    ]);
+    expect(element.textContent).toContain('Alüminyum Doğrama');
+    expect(element.textContent).not.toContain('PVC kapı');
+  });
+
   it('starts with blank measurements and keeps the architectural scene empty', () => {
     const fixture = TestBed.createComponent(ConfiguratorComponent);
     const component = fixture.componentInstance;
@@ -85,12 +115,78 @@ describe('ConfiguratorComponent public boundary', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     const firstQuestion = element.querySelector<HTMLSelectElement>('#catalog-question-0');
-    const firstDetail = element.querySelector<HTMLSelectElement>('#catalog-detail-0');
 
     expect(firstQuestion?.value).toBe('');
-    expect(firstDetail?.value).toBe('');
+    expect(component.catalogForm().controls['layout']?.value).toBe('');
+    expect(element.querySelector('.visual-selection-rail')).toBeTruthy();
     expect(element.textContent).toContain('Seçin');
     expect(component.catalogForm().invalid).toBe(true);
+  });
+
+  it('renders admin-defined numeric measurements even when visual selections are present', () => {
+    liveProducts = FALLBACK_CATALOG_PRODUCTS.map((product) =>
+      product.key === 'pvc_window'
+        ? {
+            ...product,
+            fields: [
+              ...product.fields,
+              {
+                id: 990,
+                key: 'frame_profile_width_mm',
+                label: 'Çerçeve görünür genişliği',
+                help_text: 'Teknik ölçü',
+                field_type: 'number' as const,
+                unit: 'mm',
+                min_value: 30,
+                max_value: 200,
+                step: 1,
+                required: false,
+                sort_order: 52,
+                options: [],
+              },
+            ],
+          }
+        : product,
+    );
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    fixture.detectChanges();
+
+    expect(component.nonVisualDetailFields().map((field) => field.key)).toContain(
+      'frame_profile_width_mm',
+    );
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '.numeric-field input[type="number"]',
+    );
+    expect(input).toBeTruthy();
+    expect(input?.min).toBe('30');
+    expect(input?.max).toBe('200');
+
+    component.catalogForm().controls['frame_profile_width_mm']?.setValue(76);
+    expect(component.currentItem().catalog_answers['frame_profile_width_mm']).toBe(76);
+    component.catalogForm().controls['frame_profile_width_mm']?.setValue(250);
+    expect(component.catalogForm().controls['frame_profile_width_mm']?.invalid).toBe(true);
+  });
+
+  it('selects a window model from the visual option cards', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const doubleSashCard = [
+      ...element.querySelectorAll<HTMLButtonElement>('.visual-option-card'),
+    ].find((card) => card.textContent?.includes('Çift kanat'));
+    expect(doubleSashCard).toBeTruthy();
+
+    doubleSashCard?.click();
+    fixture.detectChanges();
+
+    expect(component.catalogForm().controls['layout']?.value).toBe('double_sash');
+    expect(component.visualFieldSelectionLabel(component.activeVisualField()!)).toBe('Çift kanat');
+    expect(doubleSashCard?.classList.contains('selected')).toBe(true);
   });
 
   it('places the product only after both measurements are valid', () => {
@@ -142,6 +238,64 @@ describe('ConfiguratorComponent public boundary', () => {
     expect(element.textContent).toContain('PVC kapı + pencere');
   });
 
+  it('draws unequal sash widths from customer-entered millimetres', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    component.catalogForm().controls['layout']?.setValue('double_sash');
+    component.productForm.patchValue({ width: 2000, height: 1450 });
+
+    component.updateJoineryColumnWidth(0, '700');
+    fixture.detectChanges();
+
+    expect(component.joineryColumnWidthMm(0)).toBe(700);
+    expect(component.joineryColumnWidthMm(1)).toBe(1300);
+    const item = component.currentItem();
+    if (item.product_type === 'pvc_window' && 'panels' in item) {
+      expect(item.panels?.[0]?.width_percent).toBeCloseTo(35, 5);
+      expect(item.panels?.[1]?.x_percent).toBeCloseTo(35, 5);
+      expect(item.panels?.[1]?.width_percent).toBeCloseTo(65, 5);
+    }
+    const inputs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>(
+      '.joinery-dimension-grid input',
+    );
+    expect([...inputs].map((input) => Number(input.value))).toEqual([700, 1300]);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.joinery-summary')?.textContent,
+    ).toContain('Sol kanat: 700 × 1.450 mm');
+  });
+
+  it('draws an exact upper transom height and preserves it in the request panels', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    component.catalogForm().controls['layout']?.setValue('transom');
+    component.productForm.patchValue({ width: 1400, height: 2000 });
+
+    component.updateJoineryRowHeight(0, '450');
+    fixture.detectChanges();
+
+    expect(component.joineryRowHeightMm(0)).toBe(450);
+    expect(component.joineryRowHeightMm(1)).toBe(1550);
+    const item = component.currentItem();
+    if (item.product_type === 'pvc_window' && 'panels' in item) {
+      expect(item.panels?.[0]?.height_percent).toBeCloseTo(22.5, 5);
+      expect(item.panels?.[1]?.y_percent).toBeCloseTo(22.5, 5);
+    }
+  });
+
+  it('rejects a section dimension that leaves another sash below the safe minimum', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.catalogForm().controls['layout']?.setValue('double_sash');
+    component.productForm.patchValue({ width: 1000, height: 1200 });
+
+    component.updateJoineryColumnWidth(0, '950');
+
+    expect(component.joineryColumnWidthMm(0)).toBe(500);
+    expect(component.joineryDimensionError()).toContain('arasında olmalıdır');
+  });
+
   it('keeps a fixed right sash selection in the live window drawing', () => {
     const fixture = TestBed.createComponent(ConfiguratorComponent);
     const component = fixture.componentInstance;
@@ -175,7 +329,9 @@ describe('ConfiguratorComponent public boundary', () => {
     );
     expect(rightPanel?.getAttribute('data-panel-opening')).toBe('fixed');
     expect(element.querySelector('#panel-hinge-1')).toBeNull();
-    expect(element.querySelector('.joinery-summary')?.textContent).toContain('Sağ kanat: Sabit');
+    expect(element.querySelector('.joinery-summary')?.textContent).toContain(
+      'Sağ kanat: 1.000 × 1.450 mm · Sabit',
+    );
   });
 
   it('starts a double-sash layout with a turn opening on each sash', () => {
@@ -790,7 +946,26 @@ describe('ConfiguratorComponent public boundary', () => {
     expect(component.measurementReady()).toBe(false);
 
     component.balconySegments.at(1).controls.widthMm.setValue(1600);
-    component.balconySegments.at(1).controls.turnDegrees.setValue(90);
+    expect(component.balconySegments.at(1).controls.turnDegrees.value).toBe(90);
+    expect(component.measurementReady()).toBe(true);
+  });
+
+  it('assigns the hidden right-angle turns for every U-shaped balcony side', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.selectProduct('balcony_enclosure');
+    component.catalogForm().controls['enclosure_shape']?.setValue('u_shape');
+
+    expect(component.balconySegments).toHaveLength(3);
+    expect(
+      component.balconySegments.controls.map((segment) => segment.controls.turnDegrees.value),
+    ).toEqual([0, 90, 90]);
+
+    [4200, 1600, 2100].forEach((width, index) => {
+      component.balconySegments.at(index).controls.widthMm.setValue(width);
+    });
+    component.productForm.controls.height.setValue(1700);
+
     expect(component.measurementReady()).toBe(true);
   });
 
@@ -947,6 +1122,48 @@ describe('ConfiguratorComponent public boundary', () => {
     expect(component.step()).toBe(2);
     expect(component.productForm.controls.width.touched).toBe(true);
     expect(component.productForm.controls.height.touched).toBe(true);
+  });
+
+  it('advances joinery without requiring the hidden derived opening fields', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    component.productForm.patchValue({ width: 1200, height: 1400 });
+
+    for (const field of component.currentProduct().fields) {
+      if (
+        field.field_type === 'select' &&
+        field.options[0] &&
+        field.key !== 'opening_direction' &&
+        field.key !== 'opening_mechanism'
+      ) {
+        component.catalogForm().controls[field.key]?.setValue(field.options[0].value);
+      }
+    }
+
+    expect(component.catalogForm().controls['opening_direction']?.value).toBe('');
+    expect(component.catalogForm().controls['opening_mechanism']?.value).toBe('');
+    expect(component.catalogForm().valid).toBe(true);
+
+    component.goToContact();
+
+    expect(component.step()).toBe(3);
+  });
+
+  it('shows which managed selections are missing when contact navigation is blocked', () => {
+    const fixture = TestBed.createComponent(ConfiguratorComponent);
+    const component = fixture.componentInstance;
+    component.step.set(2);
+    component.productForm.patchValue({ width: 1200, height: 1400 });
+
+    component.goToContact();
+    fixture.detectChanges();
+
+    const alert = (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]');
+    expect(component.step()).toBe(2);
+    expect(alert?.textContent).toContain('Devam etmek için şu seçimleri tamamlayın');
+    expect(component.missingCatalogSelectionLabels()).toContain('Pencere modeli');
+    expect(component.missingCatalogSelectionLabels()).not.toContain('Açılım yönü');
   });
 
   it('returns from the drawing step to product selection using the top controls', () => {

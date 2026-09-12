@@ -202,6 +202,15 @@
             [attr.height]="panel.glass.height"
             [attr.fill]="glassFill()"
           />
+          <rect
+            class="joinery-glazing-bead"
+            [attr.x]="panel.glazingBead.x"
+            [attr.y]="panel.glazingBead.y"
+            [attr.width]="panel.glazingBead.width"
+            [attr.height]="panel.glazingBead.height"
+            [attr.stroke-width]="panel.glazingBead.strokeWidth"
+            [attr.stroke]="frameFill()"
+          />
         </g>
       }
 
@@ -239,6 +248,21 @@
             [attr.y1]="handle.y1"
             [attr.x2]="handle.x2"
             [attr.y2]="handle.y2"
+          />
+        }
+        @for (hardware of panel.hardware; track $index) {
+          <rect
+            class="joinery-hardware"
+            [class.joinery-hinge]="hardware.kind === 'hinge'"
+            [class.joinery-lock]="hardware.kind === 'lock'"
+            [class.joinery-lock-point]="hardware.kind === 'lock-point'"
+            [attr.data-hardware-kind]="hardware.kind"
+            [attr.data-hardware-variant]="hardware.variant"
+            [attr.x]="hardware.x"
+            [attr.y]="hardware.y"
+            [attr.width]="hardware.width"
+            [attr.height]="hardware.height"
+            rx="0.8"
           />
         }
       }
@@ -287,6 +311,29 @@
       {{ productLabel() }} · Adet {{ item().quantity }}
     </text>
   </svg>
+  @if (specialModel()) {
+    <app-special-system-model
+      class="special-project-model"
+      [model]="specialModel()"
+      [label]="productLabel()"
+      [profileColor]="frameFill()"
+      [stackDirection]="specialStackDirection()"
+      [pivotOpeningDirection]="pivotOpeningDirection()"
+      [infillType]="pivotInfillType()"
+      [verticalMullionCount]="pivotVerticalMullionCount()"
+      [horizontalMullionCount]="pivotHorizontalMullionCount()"
+      [widthMm]="item().width_mm"
+      [heightMm]="item().height_mm"
+      [frameProfileWidthMm]="frameProfileWidthMm()"
+      [mullionProfileWidthMm]="mullionProfileWidthMm()"
+      [glazingBarWidthMm]="glazingBarWidthMm()"
+      [pivotAxisOffsetMm]="pivotAxisOffsetMm()"
+      [hingeType]="hingeType()"
+      [lockType]="lockType()"
+      [lockHeightMm]="lockHeightMm()"
+    />
+    <p class="special-model-summary">{{ specialModelSummary() }}</p>
+  }
   @if (joineryPanelSummaries().length) {
     <ul class="joinery-legend" aria-label="Kanat ve açılım özeti">
       @for (summary of joineryPanelSummaries(); track summary.slot) {

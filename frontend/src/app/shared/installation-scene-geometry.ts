@@ -1,6 +1,6 @@
 import { CatalogMeasurement } from '../core/catalog.models';
 
-export type InstallationSceneKind = 'window' | 'door' | 'balcony' | 'facade';
+export type InstallationSceneKind = 'window' | 'door' | 'wide-system' | 'balcony' | 'facade';
 
 export interface InstallationReference {
   readonly widthMm: number;
@@ -49,6 +49,12 @@ const SCENE_PROFILES: Readonly<Record<InstallationSceneKind, SceneProfile>> = {
     maxHeightPercent: 82,
     anchorBottomPercent: 8,
   },
+  'wide-system': {
+    baseHeightPercent: 72,
+    maxWidthPercent: 90,
+    maxHeightPercent: 78,
+    anchorBottomPercent: 8,
+  },
   balcony: {
     baseHeightPercent: 58,
     maxWidthPercent: 88,
@@ -70,6 +76,10 @@ const PRODUCT_REFERENCES: Readonly<Record<string, InstallationReference>> = {
   guillotine_glass: { widthMm: 3000, heightMm: 2400 },
   facade_cladding: { widthMm: 6000, heightMm: 3500 },
   balcony_enclosure: { widthMm: 4000, heightMm: 1600 },
+  volkswagen_sliding_door: { widthMm: 3000, heightMm: 2200 },
+  hebeschiebe_system: { widthMm: 4000, heightMm: 2400 },
+  pivot_system: { widthMm: 1600, heightMm: 2400 },
+  folding_system: { widthMm: 4500, heightMm: 2400 },
 };
 
 const GENERIC_REFERENCES: Readonly<Record<CatalogMeasurement['variant'], InstallationReference>> = {
@@ -83,6 +93,14 @@ export function resolveInstallationSceneKind(
   measurementVariant: CatalogMeasurement['variant'],
   usagePrimary = '',
 ): InstallationSceneKind {
+  if (
+    productType === 'volkswagen_sliding_door' ||
+    productType === 'hebeschiebe_system' ||
+    productType === 'pivot_system' ||
+    productType === 'folding_system'
+  ) {
+    return 'wide-system';
+  }
   if (productType === 'pvc_door') {
     return 'door';
   }

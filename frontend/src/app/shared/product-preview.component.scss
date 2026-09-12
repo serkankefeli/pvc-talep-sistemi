@@ -85,6 +85,12 @@ svg {
   stroke: #756b5d;
 }
 
+.joinery-glazing-bead {
+  fill: none;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
 .joinery-marker {
   fill: none;
   stroke: #3a7770;
@@ -111,6 +117,22 @@ svg {
   stroke-linecap: round;
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
+}
+
+.joinery-hardware {
+  fill: #263d38;
+  stroke: #f7faf8;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.joinery-hinge[data-hardware-variant='concealed'] {
+  opacity: 0.45;
+  stroke-dasharray: 1 1;
+}
+
+.joinery-lock-point {
+  fill: #b88a34;
 }
 
 .dimension,
@@ -221,4 +243,25 @@ figcaption {
   font-size: 0.75rem;
   margin-top: 0.25rem;
   text-align: center;
+}
+.special-project-model {
+  display: block;
+  height: 9rem;
+  margin: -1.5rem auto 1rem;
+  max-width: 26rem;
+  width: 85%;
+}
+
+.special-model-summary {
+  color: #52665f;
+  font-size: 0.75rem;
+  margin: -0.7rem 0 1rem;
+  text-align: center;
+}
+.special-project-model {
+  display: block;
+  height: 9rem;
+  margin: -1.5rem auto 1rem;
+  max-width: 26rem;
+  width: 85%;
 }

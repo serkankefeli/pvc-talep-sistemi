@@ -1,7 +1,8 @@
 import { BalconyProfileSpec, ProductType } from './request.models';
 
-export type CatalogFieldType = 'select' | 'boolean' | 'text';
-export type CatalogAnswerValue = string | boolean;
+export type CatalogFieldType = 'select' | 'boolean' | 'text' | 'number';
+export type CatalogMaterialGroup = 'pvc' | 'aluminium';
+export type CatalogAnswerValue = string | boolean | number;
 export type CatalogAnswers = Readonly<Record<string, CatalogAnswerValue>>;
 
 export interface CatalogMeasurement {
@@ -18,6 +19,7 @@ export interface CatalogOption {
   readonly label: string;
   readonly description?: string;
   readonly features?: readonly string[];
+  readonly visual_icon_url?: string | null;
   readonly section_image_urls?: readonly string[];
   readonly profile_spec?: BalconyProfileSpec | null;
   readonly sort_order: number;
@@ -29,6 +31,10 @@ export interface CatalogField {
   readonly label: string;
   readonly help_text: string;
   readonly field_type: CatalogFieldType;
+  readonly unit?: string;
+  readonly min_value?: number | null;
+  readonly max_value?: number | null;
+  readonly step?: number | null;
   readonly required: boolean;
   readonly sort_order: number;
   readonly options: readonly CatalogOption[];
@@ -36,6 +42,7 @@ export interface CatalogField {
 
 export interface CatalogProduct {
   readonly key: string;
+  readonly material_group: CatalogMaterialGroup;
   readonly name: string;
   readonly description: string;
   readonly mark: string;
@@ -60,6 +67,7 @@ export interface AdminCatalogField extends Omit<CatalogField, 'options'> {
 
 export interface AdminCatalogProduct {
   readonly key: string;
+  readonly material_group: CatalogMaterialGroup;
   readonly name: string;
   readonly description: string;
   readonly mark: string;
@@ -74,6 +82,7 @@ export interface AdminCatalogProduct {
 
 export interface CatalogProductWrite {
   readonly key: string;
+  readonly material_group: CatalogMaterialGroup;
   readonly name: string;
   readonly description: string;
   readonly mark: string;
@@ -91,6 +100,10 @@ export interface CatalogFieldWrite {
   readonly label: string;
   readonly help_text: string;
   readonly field_type: CatalogFieldType;
+  readonly unit: string;
+  readonly min_value: number | null;
+  readonly max_value: number | null;
+  readonly step: number | null;
   readonly required: boolean;
   readonly sort_order: number;
   readonly active: boolean;
@@ -101,6 +114,7 @@ export interface CatalogOptionWrite {
   readonly label: string;
   readonly description?: string;
   readonly features?: readonly string[];
+  readonly visual_icon_url?: string | null;
   readonly section_image_urls?: readonly string[];
   readonly profile_spec?: BalconyProfileSpec | null;
   readonly sort_order: number;

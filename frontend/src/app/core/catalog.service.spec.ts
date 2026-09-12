@@ -81,6 +81,54 @@ describe('sanitizePublicCatalog', () => {
     expect(glazing?.options.some((option) => option.value === 'solar_control')).toBe(true);
   });
 
+  it('keeps bounded numeric measurement fields and rejects incomplete numeric metadata', () => {
+    const base = FALLBACK_CATALOG_PRODUCTS[0]!;
+    const response = sanitizePublicCatalog({
+      products: [
+        {
+          ...base,
+          fields: [
+            ...base.fields,
+            {
+              id: 930,
+              key: 'frame_profile_width_mm',
+              label: 'Çerçeve görünür genişliği',
+              help_text: 'Teknik ölçü',
+              field_type: 'number',
+              unit: 'mm',
+              min_value: 30,
+              max_value: 200,
+              step: 1,
+              required: false,
+              sort_order: 52,
+              options: [],
+            },
+            {
+              id: 931,
+              key: 'broken_number',
+              label: 'Eksik ölçü',
+              help_text: '',
+              field_type: 'number',
+              unit: 'mm',
+              min_value: 30,
+              max_value: null,
+              step: 1,
+              required: false,
+              sort_order: 53,
+              options: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    const fields = response.products[0]?.fields ?? [];
+    expect(fields.find((field) => field.key === 'frame_profile_width_mm')).toEqual(
+      expect.objectContaining({ unit: 'mm', min_value: 30, max_value: 200, step: 1 }),
+    );
+    expect(fields.some((field) => field.key === 'broken_number')).toBe(false);
+  });
+
   it('keeps safe series details and removes unsafe metadata', () => {
     const windowProduct = FALLBACK_CATALOG_PRODUCTS.find(
       (product) => product.key === 'pvc_window',
@@ -106,6 +154,7 @@ describe('sanitizePublicCatalog', () => {
                   label: 'Prestij 76',
                   description: 'Yalıtım ve dayanıklılık odaklı profil serisi.',
                   features: ['76 mm profil derinliği', 'Fiyat bilgisi', '<script>risk</script>'],
+                  visual_icon_url: 'https://cdn.example.com/icons/prestij-76.svg',
                   section_image_urls: [
                     'https://cdn.example.com/prestij-76.webp',
                     'javascript:alert(1)',
@@ -123,6 +172,9 @@ describe('sanitizePublicCatalog', () => {
     expect(series).toBeTruthy();
     expect(series?.options[0]?.description).toContain('Yalıtım');
     expect(series?.options[0]?.features).toEqual(['76 mm profil derinliği']);
+    expect(series?.options[0]?.visual_icon_url).toBe(
+      'https://cdn.example.com/icons/prestij-76.svg',
+    );
     expect(series?.options[0]?.section_image_urls).toEqual([
       'https://cdn.example.com/prestij-76.webp',
     ]);

@@ -13,6 +13,7 @@ import { AdminCatalogComponent } from './admin-catalog.component';
 describe('AdminCatalogComponent custom products', () => {
   const existingProduct: AdminCatalogProduct = {
     key: 'pvc_window',
+    material_group: 'pvc',
     name: 'PVC pencere',
     description: 'Pencere çözümleri',
     mark: 'P',
@@ -31,6 +32,7 @@ describe('AdminCatalogComponent custom products', () => {
     name: 'Balkon kapama',
     description: 'Ölçüye göre balkon kapama seçenekleri',
     mark: 'B',
+    material_group: 'aluminium',
     measurement_variant: 'balcony',
   };
 
@@ -50,7 +52,7 @@ describe('AdminCatalogComponent custom products', () => {
 
   const api = {
     loadProducts: vi.fn(() => of([existingProduct])),
-    loadFields: vi.fn(() => of([])),
+    loadFields: vi.fn(() => of<readonly AdminCatalogField[]>([])),
     createProduct: vi.fn((payload: CatalogProductWrite) =>
       of({
         ...payload,
@@ -59,9 +61,11 @@ describe('AdminCatalogComponent custom products', () => {
     updateProduct: vi.fn(),
     createField: vi.fn(),
     updateField: vi.fn(),
+    deleteField: vi.fn(),
     loadOptions: vi.fn(() => of<readonly AdminCatalogOption[]>([])),
     createOption: vi.fn(),
     updateOption: vi.fn(),
+    deleteOption: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -123,6 +127,90 @@ describe('AdminCatalogComponent custom products', () => {
     expect(fixture.nativeElement.querySelector('#catalogProductMark')).toBeNull();
   });
 
+  it('creates a bounded numeric measurement field for the public configurator', () => {
+    const createdField: AdminCatalogField = {
+      id: 95,
+      product_key: 'pvc_window',
+      key: 'frame_profile_width_mm',
+      label: 'Çerçeve görünür genişliği',
+      help_text: 'Teknik ölçü',
+      field_type: 'number',
+      unit: 'mm',
+      min_value: 30,
+      max_value: 200,
+      step: 1,
+      required: false,
+      active: true,
+      sort_order: 52,
+    };
+    api.createField.mockReturnValue(of(createdField));
+    const fixture = TestBed.createComponent(AdminCatalogComponent);
+    const component = fixture.componentInstance;
+    component.products.set([existingProduct]);
+    component.selectProduct(existingProduct);
+    component.startNewField();
+    component.fieldForm.patchValue({
+      key: createdField.key,
+      label: createdField.label,
+      helpText: createdField.help_text,
+      fieldType: 'number',
+      unit: 'mm',
+      minValue: 30,
+      maxValue: 200,
+      step: 1,
+      required: false,
+      active: true,
+      sortOrder: 52,
+    });
+
+    component.saveField();
+
+    expect(api.createField).toHaveBeenCalledWith(
+      'pvc_window',
+      expect.objectContaining({
+        field_type: 'number',
+        unit: 'mm',
+        min_value: 30,
+        max_value: 200,
+        step: 1,
+      }),
+    );
+  });
+
+  it('removes and restores form fields without deleting their configuration', () => {
+    const activeField: AdminCatalogField = {
+      id: 30,
+      product_key: 'pvc_window',
+      key: 'installation_floor',
+      label: 'Uygulama katı',
+      help_text: 'Kat bilgisini seçin.',
+      field_type: 'text',
+      required: false,
+      active: true,
+      sort_order: 140,
+    };
+    const inactiveField = { ...activeField, id: 31, key: 'old_question', active: false };
+    api.loadFields.mockReturnValue(of([activeField, inactiveField]));
+    api.loadOptions.mockReturnValue(of([]));
+    api.deleteField.mockReturnValue(of(undefined));
+    api.updateField.mockReturnValue(of({ ...inactiveField, active: true }));
+    const fixture = TestBed.createComponent(AdminCatalogComponent);
+    const component = fixture.componentInstance;
+    component.products.set([existingProduct]);
+    component.selectProduct(existingProduct);
+    fixture.detectChanges();
+
+    component.removeField(activeField);
+    expect(api.deleteField).toHaveBeenCalledWith(30);
+
+    component.toggleField(inactiveField);
+    expect(api.updateField).toHaveBeenCalledWith(31, { active: true });
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[aria-label="Uygulama katı alanını sil"]')).toBeTruthy();
+    expect(element.querySelector('[aria-label="Uygulama katı alanını tekrar ekle"]')).toBeTruthy();
+  });
+
   it('loads and saves descriptions, features, and images for a regular select option', () => {
     const layoutField: AdminCatalogField = {
       id: 40,
@@ -142,6 +230,7 @@ describe('AdminCatalogComponent custom products', () => {
       label: 'Çift açılım',
       description: 'Kanat hem yana hem üstten açılabilir.',
       features: ['Kolay havalandırma', 'İki farklı kullanım biçimi'],
+      visual_icon_url: 'https://cdn.example.com/icons/tilt-turn.svg',
       section_image_urls: ['https://cdn.example.com/tilt-turn.webp'],
       active: true,
       sort_order: 10,
@@ -163,6 +252,9 @@ describe('AdminCatalogComponent custom products', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('.section-image-preview img'),
     ).toBeTruthy();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.visual-icon-preview img'),
+    ).toBeTruthy();
 
     component.saveOption();
 
@@ -171,9 +263,58 @@ describe('AdminCatalogComponent custom products', () => {
       expect.objectContaining({
         description: 'Kanat hem yana hem üstten açılabilir.',
         features: ['Kolay havalandırma', 'İki farklı kullanım biçimi'],
+        visual_icon_url: 'https://cdn.example.com/icons/tilt-turn.svg',
         section_image_urls: ['https://cdn.example.com/tilt-turn.webp'],
       }),
     );
+  });
+
+  it('removes an active option and allows an inactive option to be restored', () => {
+    const movementField: AdminCatalogField = {
+      id: 42,
+      product_key: 'guillotine_glass',
+      key: 'system_type',
+      label: 'Hareket sistemi',
+      help_text: '',
+      field_type: 'select',
+      required: true,
+      active: true,
+      sort_order: 10,
+    };
+    const manualOption: AdminCatalogOption = {
+      id: 43,
+      field_id: 42,
+      value: 'manual',
+      label: 'Elle hareket eden sistem',
+      active: true,
+      sort_order: 10,
+    };
+    const motorizedOption: AdminCatalogOption = {
+      id: 44,
+      field_id: 42,
+      value: 'motorized',
+      label: 'Motorlu sistem',
+      active: false,
+      sort_order: 20,
+    };
+    api.loadOptions.mockReturnValue(of([manualOption, motorizedOption]));
+    api.deleteOption.mockReturnValue(of(undefined));
+    api.updateOption.mockReturnValue(of({ ...motorizedOption, active: true }));
+    const fixture = TestBed.createComponent(AdminCatalogComponent);
+    const component = fixture.componentInstance;
+    component.fields.set([movementField]);
+    component.selectField(movementField);
+    fixture.detectChanges();
+
+    component.removeOption(manualOption);
+    expect(api.deleteOption).toHaveBeenCalledWith(43);
+
+    component.toggleOption(motorizedOption);
+    expect(api.updateOption).toHaveBeenCalledWith(44, { active: true });
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[aria-label="Elle hareket eden sistem seçeneğini sil"]')).toBeTruthy();
+    expect(element.querySelector('[aria-label="Motorlu sistem seçeneğini tekrar ekle"]')).toBeTruthy();
   });
 
   it('manages structured measurements with descriptions and images for every profile series', () => {

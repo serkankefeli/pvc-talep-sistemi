@@ -205,6 +205,17 @@
     </section>
 
     <aside class="side-column">
+      <section class="panel project-output-panel">
+        <div class="panel-title">
+          <h3>Ölçülü ön proje</h3>
+          <span>{{ request.items.length }} çizim</span>
+        </div>
+        <p>Talepteki bütün çizimleri ölçüleriyle birlikte yazdırın veya PDF olarak kaydedin.</p>
+        <button type="button" class="button secondary" (click)="printPreProject()">
+          Ön projeyi PDF / yazdır
+        </button>
+      </section>
+
       <form class="panel admin-form" [formGroup]="updateForm" (ngSubmit)="save()">
         <div class="panel-title">
           <h3>İç değerlendirme</h3>
@@ -238,6 +249,30 @@
         <button type="submit" class="button primary" [disabled]="saving()">
           {{ saving() ? 'Kaydediliyor…' : 'Değişiklikleri kaydet' }}
         </button>
+      </form>
+
+      <form class="panel revision-form" [formGroup]="revisionForm" (ngSubmit)="createRevision()">
+        <div class="panel-title">
+          <h3>Revizyon geçmişi</h3>
+          <span>{{ revisions().length }} kayıt</span>
+        </div>
+        <div class="field">
+          <label for="revisionNote">Revizyon notu</label>
+          <textarea id="revisionNote" rows="3" formControlName="note"></textarea>
+        </div>
+        <button type="submit" class="button secondary" [disabled]="revisionSaving()">
+          {{ revisionSaving() ? 'Oluşturuluyor…' : 'Mevcut çizimlerden revizyon oluştur' }}
+        </button>
+        @if (revisionMessage()) {
+          <p class="action-message" role="status">{{ revisionMessage() }}</p>
+        }
+        @for (revision of revisions(); track revision.id) {
+          <article class="revision-entry">
+            <strong>Revizyon {{ revision.revision_number }}</strong>
+            <small>{{ revision.created_at | date: 'dd.MM.yyyy HH:mm' }} · {{ revision.created_by }}</small>
+            <p>{{ revision.note }}</p>
+          </article>
+        }
       </form>
 
       <form class="panel email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">

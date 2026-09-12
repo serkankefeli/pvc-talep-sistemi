@@ -54,8 +54,15 @@ export interface JoineryPanelGeometry {
   readonly panel: JoineryPanel;
   readonly frame: JoineryBounds;
   readonly glass: JoineryBounds;
+  readonly glazingBead: JoineryBounds & { readonly strokeWidth: number };
   readonly markers: readonly JoineryMarkerLine[];
   readonly handle: JoineryLine | null;
+  readonly hardware: readonly JoineryHardwareGeometry[];
+}
+
+export interface JoineryHardwareGeometry extends JoineryBounds {
+  readonly kind: 'hinge' | 'lock' | 'lock-point';
+  readonly variant: string;
 }
 
 export interface JoineryGeometry {
@@ -284,6 +291,27 @@ export function calculateJoineryGeometry(
 ): JoineryGeometry {
   const safeBounds = normalizeBounds(bounds);
   const profileSpec = itemProfileSpec(item);
+  const sideProfileWidthMm = catalogMeasurement(
+    item,
+    'frame_profile_width_mm',
+    profileSpec?.edge_profile_mm,
+  );
+  const topProfileWidthMm = catalogMeasurement(
+    item,
+    'frame_profile_width_mm',
+    profileSpec?.top_profile_mm,
+  );
+  const bottomProfileWidthMm = catalogMeasurement(
+    item,
+    'frame_profile_width_mm',
+    profileSpec?.bottom_profile_mm,
+  );
+  const mullionProfileWidthMm = catalogMeasurement(
+    item,
+    'mullion_profile_width_mm',
+    profileSpec?.mullion_profile_mm,
+  );
+  const glazingBarWidthMm = catalogMeasurement(item, 'glazing_bar_width_mm', 20) ?? 20;
   const horizontalScale = safeBounds.width / positiveMeasurement(item.width_mm);
   const verticalScale = safeBounds.height / positiveMeasurement(item.height_mm);
   const panels = resolveJoineryPanels(item).map((source) => {
@@ -293,15 +321,15 @@ export function calculateJoineryGeometry(
       Math.max(frame.width * 0.22, 0.25),
       Math.max(frame.height * 0.22, 0.25),
     );
-    const leftInset = profileSpec
-      ? boundedPhysicalInset(profileSpec.edge_profile_mm * horizontalScale, frame.width)
+    const leftInset = sideProfileWidthMm !== null
+      ? boundedPhysicalInset(sideProfileWidthMm * horizontalScale, frame.width)
       : legacyInset;
     const rightInset = leftInset;
-    const topInset = profileSpec
-      ? boundedPhysicalInset(profileSpec.top_profile_mm * verticalScale, frame.height)
+    const topInset = topProfileWidthMm !== null
+      ? boundedPhysicalInset(topProfileWidthMm * verticalScale, frame.height)
       : legacyInset;
-    const bottomInset = profileSpec
-      ? boundedPhysicalInset(profileSpec.bottom_profile_mm * verticalScale, frame.height)
+    const bottomInset = bottomProfileWidthMm !== null
+      ? boundedPhysicalInset(bottomProfileWidthMm * verticalScale, frame.height)
       : legacyInset;
     const glass: JoineryBounds = {
       x: frame.x + leftInset,
@@ -309,12 +337,19 @@ export function calculateJoineryGeometry(
       width: Math.max(frame.width - leftInset - rightInset, 0.5),
       height: Math.max(frame.height - topInset - bottomInset, 0.5),
     };
+    const glazingBeadStroke = clamp(
+      glazingBarWidthMm * ((horizontalScale + verticalScale) / 2),
+      0.5,
+      Math.max(Math.min(frame.width, frame.height) * 0.12, 0.5),
+    );
     return {
       panel: source,
       frame,
       glass,
+      glazingBead: { ...glass, strokeWidth: glazingBeadStroke },
       markers: markerLines(source, glass),
       handle: handleLine(source, glass),
+      hardware: hardwareGeometry(item, source, frame),
     } satisfies JoineryPanelGeometry;
   });
 
@@ -323,16 +358,85 @@ export function calculateJoineryGeometry(
     2.5,
     8,
   );
-  const verticalRecordThickness = profileSpec
-    ? boundedRecordThickness(profileSpec.mullion_profile_mm * horizontalScale, safeBounds.width)
+  const verticalRecordThickness = mullionProfileWidthMm !== null
+    ? boundedRecordThickness(mullionProfileWidthMm * horizontalScale, safeBounds.width)
     : legacyRecordThickness;
-  const horizontalRecordThickness = profileSpec
-    ? boundedRecordThickness(profileSpec.mullion_profile_mm * verticalScale, safeBounds.height)
+  const horizontalRecordThickness = mullionProfileWidthMm !== null
+    ? boundedRecordThickness(mullionProfileWidthMm * verticalScale, safeBounds.height)
     : legacyRecordThickness;
   return {
     panels,
     records: sharedRecords(panels, verticalRecordThickness, horizontalRecordThickness),
   };
+}
+
+function hardwareGeometry(
+  item: WindowItem | DoorItem,
+  panelSource: JoineryPanel,
+  frame: JoineryBounds,
+): readonly JoineryHardwareGeometry[] {
+  if (panelSource.opening === 'fixed' || panelSource.opening === 'sliding') {
+    return [];
+  }
+
+  const markers: JoineryHardwareGeometry[] = [];
+  const hingeType = catalogText(item, 'hinge_type');
+  if (hingeType && hingeType !== 'advisor' && panelSource.hinge !== 'none') {
+    const count = hingeType === 'heavy_duty' ? 4 : 3;
+    const hingeWidth = clamp(frame.width * 0.025, 0.8, 2.5);
+    const hingeHeight = clamp(frame.height * 0.045, 1.6, 4.5);
+    const x = panelSource.hinge === 'left'
+      ? frame.x + hingeWidth * 0.5
+      : frame.x + frame.width - hingeWidth * 1.5;
+    for (let index = 0; index < count; index += 1) {
+      const centerY = frame.y + (frame.height * (index + 1)) / (count + 1);
+      markers.push({
+        kind: 'hinge',
+        variant: hingeType,
+        x,
+        y: centerY - hingeHeight / 2,
+        width: hingeWidth,
+        height: hingeHeight,
+      });
+    }
+  }
+
+  const lockType = catalogText(item, 'lock_type');
+  if (lockType && lockType !== 'advisor') {
+    const lockWidth = clamp(frame.width * 0.025, 0.8, 2.4);
+    const lockHeight = clamp(frame.height * 0.075, 2.5, 7);
+    const lockOnLeft = panelSource.hinge === 'right';
+    const x = lockOnLeft
+      ? frame.x + lockWidth * 0.75
+      : frame.x + frame.width - lockWidth * 1.75;
+    const requestedHeight = catalogMeasurement(item, 'lock_height_mm', undefined);
+    const ratio = requestedHeight === null
+      ? 0.5
+      : clamp(requestedHeight / positiveMeasurement(item.height_mm), 0.12, 0.88);
+    const centerY = frame.y + frame.height * (1 - ratio);
+    markers.push({
+      kind: 'lock',
+      variant: lockType,
+      x,
+      y: centerY - lockHeight / 2,
+      width: lockWidth,
+      height: lockHeight,
+    });
+    if (lockType === 'multipoint' || lockType === 'security') {
+      for (const offset of [-0.28, 0.28]) {
+        const size = clamp(Math.min(frame.width, frame.height) * 0.018, 0.8, 2.2);
+        markers.push({
+          kind: 'lock-point',
+          variant: lockType,
+          x: x + (lockWidth - size) / 2,
+          y: centerY + frame.height * offset - size / 2,
+          width: size,
+          height: size,
+        });
+      }
+    }
+  }
+  return markers;
 }
 
 function panel(
@@ -667,6 +771,25 @@ function itemProfileSpec(item: WindowItem | DoorItem): BalconyProfileSpec | null
     return null;
   }
   return candidate;
+}
+
+function catalogMeasurement(
+  item: WindowItem | DoorItem,
+  key: string,
+  fallback: number | undefined,
+): number | null {
+  const answer = item.catalog_answers[key];
+  if (typeof answer === 'number' && Number.isFinite(answer) && answer > 0) {
+    return answer;
+  }
+  return typeof fallback === 'number' && Number.isFinite(fallback) && fallback >= 0
+    ? fallback
+    : null;
+}
+
+function catalogText(item: WindowItem | DoorItem, key: string): string {
+  const answer = item.catalog_answers[key];
+  return typeof answer === 'string' ? answer.trim() : '';
 }
 
 function positiveMeasurement(value: number): number {

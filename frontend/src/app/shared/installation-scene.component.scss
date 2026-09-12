@@ -115,6 +115,11 @@
   position: absolute;
 }
 
+.installed-unit.special-system-unit {
+  border-width: clamp(0.22rem, 0.55vw, 0.42rem);
+  inset: 0.34rem;
+}
+
 .installed-unit.balcony-profile-unit {
   background: transparent;
   border: 0;
@@ -254,6 +259,12 @@
   stroke: #756b5d;
 }
 
+.joinery-glazing-bead {
+  fill: none;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
 .joinery-marker {
   fill: none;
   stroke: #3a7770;
@@ -280,6 +291,22 @@
   stroke-linecap: round;
   stroke-width: 2.8;
   vector-effect: non-scaling-stroke;
+}
+
+.joinery-hardware {
+  fill: #263d38;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+
+.joinery-hinge[data-hardware-variant='concealed'] {
+  opacity: 0.45;
+  stroke-dasharray: 1 1;
+}
+
+.joinery-lock-point {
+  fill: #b88a34;
 }
 
 .mesh-unit .pane {
@@ -563,4 +590,24 @@ figcaption .balcony-layout-warning {
   .mounting-opening {
     transition: none;
   }
+}
+.installed-special-model {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.special-model-summary {
+  color: #17463e;
+  font-weight: 700;
+}
+
+.special-model-warning {
+  background: #fff4dc;
+  border: 1px solid #e7c77f;
+  border-radius: 0.45rem;
+  color: #77500d;
+  line-height: 1.4;
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.6rem;
 }

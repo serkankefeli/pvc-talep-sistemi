@@ -14,6 +14,8 @@ from pydantic import (
     EmailStr,
     Field,
     StrictBool,
+    StrictFloat,
+    StrictInt,
     StrictStr,
     field_validator,
     model_validator,
@@ -137,7 +139,7 @@ CatalogValue = Annotated[str, AfterValidator(validate_catalog_value)]
 PlainText = Annotated[str, AfterValidator(validate_plain_text)]
 PublicCatalogText = Annotated[str, AfterValidator(validate_public_catalog_text)]
 SectionImageUrl = Annotated[str, AfterValidator(validate_section_image_url)]
-CatalogAnswerValue = StrictStr | StrictBool
+CatalogAnswerValue = StrictStr | StrictBool | StrictInt | StrictFloat
 
 
 class PreferredContact(str, Enum):
@@ -284,6 +286,9 @@ class ProductItemBase(StrictModel):
                 if len(answer) > 500:
                     raise ValueError("Catalog text answers cannot exceed 500 characters")
                 validate_plain_text(answer)
+            elif isinstance(answer, (int, float)) and not isinstance(answer, bool):
+                if not -1_000_000_000 <= float(answer) <= 1_000_000_000:
+                    raise ValueError("Catalog numeric answers are outside the supported range")
         return value
 
 
@@ -528,6 +533,20 @@ class AdminRequestUpdate(StrictModel):
         return self
 
 
+class AdminRequestRevisionCreate(StrictModel):
+    note: str = Field(min_length=1, max_length=3000)
+
+
+class AdminRequestRevision(StrictModel):
+    id: int
+    request_id: int
+    revision_number: int
+    note: str
+    items: list[ProductItemCreate]
+    created_by: str
+    created_at: datetime
+
+
 class AdminRequestFavoriteState(StrictModel):
     request_id: int
     favorite: bool
@@ -555,8 +574,9 @@ class HealthResponse(StrictModel):
     status: Literal["ok"] = "ok"
 
 
-CatalogFieldType = Literal["select", "boolean", "text"]
+CatalogFieldType = Literal["select", "boolean", "text", "number"]
 MeasurementVariant = Literal["opening", "facade", "balcony"]
+CatalogMaterialGroup = Literal["pvc", "aluminium"]
 
 
 class CatalogMeasurementPublic(StrictModel):
@@ -570,6 +590,7 @@ class CatalogMeasurementPublic(StrictModel):
 class CatalogOptionDetails(StrictModel):
     description: PublicCatalogText = Field(default="", max_length=1000)
     features: list[PublicCatalogText] = Field(default_factory=list, max_length=12)
+    visual_icon_url: SectionImageUrl | None = None
     section_image_urls: list[SectionImageUrl] = Field(default_factory=list, max_length=4)
     profile_spec: ProfileSpec | None = None
 
@@ -603,6 +624,10 @@ class CatalogFieldPublic(StrictModel):
     label: str
     help_text: str
     field_type: CatalogFieldType
+    unit: str = ""
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
     required: bool
     sort_order: int
     options: list[CatalogOptionPublic]
@@ -610,6 +635,7 @@ class CatalogFieldPublic(StrictModel):
 
 class CatalogProductPublic(StrictModel):
     key: str
+    material_group: CatalogMaterialGroup
     name: str
     description: str
     mark: str
@@ -624,6 +650,7 @@ class PublicCatalogResponse(StrictModel):
 
 class CatalogProductCreate(StrictModel):
     key: CatalogKey = Field(max_length=64)
+    material_group: CatalogMaterialGroup = "pvc"
     name: PublicCatalogText = Field(min_length=1, max_length=120)
     description: PublicCatalogText = Field(min_length=1, max_length=1000)
     mark: PublicCatalogText = Field(min_length=1, max_length=8)
@@ -637,6 +664,7 @@ class CatalogProductCreate(StrictModel):
 
 
 class CatalogProductUpdate(StrictModel):
+    material_group: CatalogMaterialGroup | None = None
     name: PublicCatalogText | None = Field(default=None, min_length=1, max_length=120)
     description: PublicCatalogText | None = Field(
         default=None,
@@ -686,15 +714,36 @@ class CatalogFieldCreate(StrictModel):
     label: PublicCatalogText = Field(min_length=1, max_length=120)
     help_text: PublicCatalogText = Field(default="", max_length=500)
     field_type: CatalogFieldType
+    unit: PlainText = Field(default="", max_length=16)
+    min_value: float | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)
+    max_value: float | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)
+    step: float | None = Field(default=None, gt=0, le=1_000_000_000)
     required: bool = False
     active: bool = True
     sort_order: int = Field(default=0, ge=-10_000, le=10_000)
+
+    @model_validator(mode="after")
+    def validate_numeric_configuration(self) -> "CatalogFieldCreate":
+        if self.field_type == "number":
+            if self.min_value is None or self.max_value is None or self.step is None:
+                raise ValueError("Number fields require min_value, max_value and step")
+            if self.min_value > self.max_value:
+                raise ValueError("min_value cannot exceed max_value")
+        elif self.unit or any(
+            value is not None for value in (self.min_value, self.max_value, self.step)
+        ):
+            raise ValueError("Numeric configuration is only valid for number fields")
+        return self
 
 
 class CatalogFieldUpdate(StrictModel):
     label: PublicCatalogText | None = Field(default=None, min_length=1, max_length=120)
     help_text: PublicCatalogText | None = Field(default=None, max_length=500)
     field_type: CatalogFieldType | None = None
+    unit: PlainText | None = Field(default=None, max_length=16)
+    min_value: float | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)
+    max_value: float | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)
+    step: float | None = Field(default=None, gt=0, le=1_000_000_000)
     required: bool | None = None
     active: bool | None = None
     sort_order: int | None = Field(default=None, ge=-10_000, le=10_000)
@@ -724,6 +773,7 @@ class CatalogOptionUpdate(StrictModel):
     label: PublicCatalogText | None = Field(default=None, min_length=1, max_length=120)
     description: PublicCatalogText | None = Field(default=None, max_length=1000)
     features: list[PublicCatalogText] | None = Field(default=None, max_length=12)
+    visual_icon_url: SectionImageUrl | None = None
     section_image_urls: list[SectionImageUrl] | None = Field(default=None, max_length=4)
     profile_spec: ProfileSpec | None = None
     active: bool | None = None
@@ -753,7 +803,7 @@ class CatalogOptionUpdate(StrictModel):
         if any(
             getattr(self, field) is None
             for field in self.model_fields_set
-            if field != "profile_spec"
+            if field not in {"profile_spec", "visual_icon_url"}
         ):
             raise ValueError("Catalog option values cannot be null")
         return self

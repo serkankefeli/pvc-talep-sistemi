@@ -46,6 +46,7 @@
             <span>
               <strong>{{ product.name }}</strong>
               <small>
+                {{ product.material_group === 'pvc' ? 'PVC' : 'Alüminyum' }} ·
                 Sıra {{ product.sort_order }} ·
                 {{ product.active ? 'Yayında' : 'Yayında değil' }}
               </small>
@@ -100,6 +101,14 @@
           <div class="field">
             <label for="catalogProductSort">Sıra</label>
             <input id="catalogProductSort" type="number" min="0" formControlName="sortOrder" />
+          </div>
+          <div class="field">
+            <label for="catalogMaterialGroup">Ana kategori</label>
+            <select id="catalogMaterialGroup" formControlName="materialGroup">
+              <option value="pvc">PVC Doğrama</option>
+              <option value="aluminium">Alüminyum Doğrama</option>
+            </select>
+            <small class="form-hint">Ürün müşteriye bu ana kategori altında gösterilir.</small>
           </div>
           <div class="field field-wide">
             <label for="catalogProductName">Görünen ad</label>
@@ -175,19 +184,40 @@
 
             <div class="entity-list">
               @for (field of fields(); track field.id) {
-                <button
-                  type="button"
-                  class="entity-row"
+                <div
+                  class="entity-row-wrap"
                   [class.selected]="selectedFieldId() === field.id && !fieldIsNew()"
                   [class.inactive]="!field.active"
-                  (click)="selectField(field)"
                 >
-                  <span>
-                    <strong>{{ field.label }}</strong>
-                    <small>{{ field.key }} · sıra {{ field.sort_order }}</small>
-                  </span>
-                  <em>{{ field.field_type }}</em>
-                </button>
+                  <button type="button" class="entity-row" (click)="selectField(field)">
+                    <span>
+                      <strong>{{ field.label }}</strong>
+                      <small>{{ field.key }} · sıra {{ field.sort_order }}</small>
+                    </span>
+                    <em>{{ field.field_type }}</em>
+                  </button>
+                  @if (field.active) {
+                    <button
+                      type="button"
+                      class="option-row-action danger"
+                      [attr.aria-label]="field.label + ' alanını sil'"
+                      [disabled]="busy()"
+                      (click)="removeField(field)"
+                    >
+                      Sil
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="option-row-action"
+                      [attr.aria-label]="field.label + ' alanını tekrar ekle'"
+                      [disabled]="busy()"
+                      (click)="toggleField(field)"
+                    >
+                      Geri ekle
+                    </button>
+                  }
+                </div>
               }
             </div>
 
@@ -219,6 +249,7 @@
                     <option value="select">Seçim listesi</option>
                     <option value="boolean">Evet / hayır</option>
                     <option value="text">Kısa metin</option>
+                    <option value="number">Sayısal ölçü</option>
                   </select>
                 </div>
                 <div class="field">
@@ -226,6 +257,34 @@
                   <input id="catalogFieldSort" type="number" min="0" formControlName="sortOrder" />
                 </div>
               </div>
+              @if (fieldForm.controls.fieldType.value === 'number') {
+                <fieldset class="numeric-field-settings">
+                  <legend>Sayısal alan sınırları</legend>
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label for="catalogFieldUnit">Birim</label>
+                      <input id="catalogFieldUnit" type="text" maxlength="16" formControlName="unit" placeholder="mm" />
+                    </div>
+                    <div class="field">
+                      <label for="catalogFieldStep">Artış adımı</label>
+                      <input id="catalogFieldStep" type="number" min="0.000001" step="any" formControlName="step" />
+                    </div>
+                  </div>
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label for="catalogFieldMin">Minimum</label>
+                      <input id="catalogFieldMin" type="number" step="any" formControlName="minValue" />
+                    </div>
+                    <div class="field">
+                      <label for="catalogFieldMax">Maksimum</label>
+                      <input id="catalogFieldMax" type="number" step="any" formControlName="maxValue" />
+                    </div>
+                  </div>
+                  <p class="form-hint">
+                    Müşteri yalnız bu aralıkta değer girebilir; değer talebe ve teknik çizime kaydedilir.
+                  </p>
+                </fieldset>
+              }
               <div class="checks">
                 <label><input type="checkbox" formControlName="required" /> Zorunlu</label>
                 <label><input type="checkbox" formControlName="active" /> Yayında</label>
@@ -280,30 +339,51 @@
             } @else {
               <div class="entity-list option-list">
                 @for (option of options(); track option.id) {
-                  <button
-                    type="button"
-                    class="entity-row"
+                  <div
+                    class="entity-row-wrap"
                     [class.inactive]="!option.active"
                     [class.selected]="
                       optionForm.controls.value.value === option.value && !optionIsNew()
                     "
-                    (click)="selectOption(option)"
                   >
-                    <span>
-                      <strong>{{ option.label }}</strong>
-                      <small>
-                        {{ option.value }} · sıra {{ option.sort_order }}
-                        @if (
-                          option.description ||
-                          option.features?.length ||
-                          option.section_image_urls?.length ||
-                          option.profile_spec
-                        ) {
-                          · ayrıntılı
-                        }
-                      </small>
-                    </span>
-                  </button>
+                    <button type="button" class="entity-row" (click)="selectOption(option)">
+                      <span>
+                        <strong>{{ option.label }}</strong>
+                        <small>
+                          {{ option.value }} · sıra {{ option.sort_order }}
+                          @if (
+                            option.description ||
+                            option.features?.length ||
+                            option.section_image_urls?.length ||
+                            option.profile_spec
+                          ) {
+                            · ayrıntılı
+                          }
+                        </small>
+                      </span>
+                    </button>
+                    @if (option.active) {
+                      <button
+                        type="button"
+                        class="option-row-action danger"
+                        [attr.aria-label]="option.label + ' seçeneğini sil'"
+                        [disabled]="busy()"
+                        (click)="removeOption(option)"
+                      >
+                        Sil
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="option-row-action"
+                        [attr.aria-label]="option.label + ' seçeneğini tekrar ekle'"
+                        [disabled]="busy()"
+                        (click)="toggleOption(option)"
+                      >
+                        Geri ekle
+                      </button>
+                    }
+                  </div>
                 }
               </div>
 
@@ -462,7 +542,7 @@
                         </div>
                         <div class="field">
                           <label for="profileMaxGlassMm"
-                            >Maksimum net cam eni <span>mm</span></label
+                            >Maksimum kanat / net cam eni <span>mm</span></label
                           >
                           <input
                             id="profileMaxGlassMm"
@@ -545,6 +625,35 @@
                       En fazla 12 satır ekleyin. Örn. “76 mm profil derinliği”; her satır en fazla
                       160 karakter olabilir.
                     </small>
+                  </div>
+                  <div class="field">
+                    <label for="catalogOptionVisualIcon">
+                      Seçim kartı ikonu <span>isteğe bağlı</span>
+                    </label>
+                    <input
+                      id="catalogOptionVisualIcon"
+                      type="url"
+                      formControlName="visualIconUrl"
+                      placeholder="https://.../ikon.svg"
+                    />
+                    <small>
+                      SVG, PNG veya WebP görsel adresi girin. Boş bırakırsanız sistem teknik yedek
+                      ikonu kullanır.
+                    </small>
+                    @if (
+                      optionForm.controls.visualIconUrl.valid &&
+                      optionForm.controls.visualIconUrl.value
+                    ) {
+                      <figure class="visual-icon-preview">
+                        <img
+                          [src]="optionForm.controls.visualIconUrl.value"
+                          [alt]="optionForm.controls.label.value + ' seçim ikonu önizlemesi'"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <figcaption>Müşteri seçim kartında böyle görünecek</figcaption>
+                      </figure>
+                    }
                   </div>
                   <div class="field">
                     <label for="catalogOptionSectionImages">

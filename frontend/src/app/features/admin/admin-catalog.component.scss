@@ -231,6 +231,61 @@
   justify-content: space-between;
 }
 
+.entity-row-wrap {
+  align-items: stretch;
+  background: #fff;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.entity-row-wrap:first-child {
+  border-top: 0;
+}
+
+.entity-row-wrap .entity-row {
+  border-top: 0;
+}
+
+.entity-row-wrap.selected,
+.entity-row-wrap:hover {
+  background: var(--forest-soft);
+}
+
+.entity-row-wrap.selected .entity-row,
+.entity-row-wrap:hover .entity-row {
+  background: transparent;
+}
+
+.entity-row-wrap.inactive {
+  opacity: 0.62;
+}
+
+.option-row-action {
+  align-self: center;
+  background: #fff;
+  border: 1px solid #b9d0c7;
+  border-radius: 999px;
+  color: var(--forest);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.67rem;
+  font-weight: 800;
+  margin-right: 0.55rem;
+  padding: 0.35rem 0.55rem;
+  white-space: nowrap;
+}
+
+.option-row-action.danger {
+  border-color: #e5b7b1;
+  color: #9a3026;
+}
+
+.option-row-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .entity-row:first-child {
   border-top: 0;
 }
@@ -263,7 +318,8 @@
   resize: vertical;
 }
 
-.profile-spec-editor {
+.profile-spec-editor,
+.numeric-field-settings {
   background: #f1f7f4;
   border: 1px solid #cbdcd4;
   border-radius: 0.75rem;
@@ -272,7 +328,8 @@
   padding: 0.9rem;
 }
 
-.profile-spec-editor legend {
+.profile-spec-editor legend,
+.numeric-field-settings legend {
   color: var(--forest);
   font-size: 0.8rem;
   font-weight: 850;
@@ -358,6 +415,33 @@
   object-fit: contain;
   padding: 0.45rem;
   width: 100%;
+}
+
+.visual-icon-preview {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cbdcd4;
+  border-radius: 0.65rem;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.65rem 0 0;
+  padding: 0.65rem;
+}
+
+.visual-icon-preview img {
+  background: #e7f0ec;
+  border: 1px solid #d2e0da;
+  border-radius: 0.5rem;
+  height: 4rem;
+  object-fit: contain;
+  padding: 0.35rem;
+  width: 4rem;
+}
+
+.visual-icon-preview figcaption {
+  color: var(--muted);
+  font-size: 0.67rem;
+  line-height: 1.45;
 }
 
 .inline-fields {

@@ -55,6 +55,10 @@ export class AdminCatalogService {
     return this.http.patch<AdminCatalogField>(`${this.baseUrl}/fields/${id}`, payload);
   }
 
+  deleteField(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/fields/${id}`);
+  }
+
   loadOptions(fieldId: number): Observable<readonly AdminCatalogOption[]> {
     return this.http.get<readonly AdminCatalogOption[]>(
       `${this.baseUrl}/fields/${fieldId}/options`,
@@ -73,5 +77,9 @@ export class AdminCatalogService {
     payload: Partial<Omit<CatalogOptionWrite, 'value'>>,
   ): Observable<AdminCatalogOption> {
     return this.http.patch<AdminCatalogOption>(`${this.baseUrl}/options/${id}`, payload);
+  }
+
+  deleteOption(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/options/${id}`);
   }
 }

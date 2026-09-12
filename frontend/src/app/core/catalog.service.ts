@@ -5,6 +5,7 @@ import {
   CatalogField,
   CatalogFieldType,
   CatalogMeasurement,
+  CatalogMaterialGroup,
   CatalogOption,
   CatalogProduct,
   CatalogResponse,
@@ -16,7 +17,7 @@ import { BalconyProfileSpec } from './request.models';
 import { FALLBACK_CATALOG_PRODUCTS } from './fallback-catalog';
 import { RUNTIME_CONFIG } from './runtime-config';
 
-const FIELD_TYPES = new Set<CatalogFieldType>(['select', 'boolean', 'text']);
+const FIELD_TYPES = new Set<CatalogFieldType>(['select', 'boolean', 'text', 'number']);
 const UNSAFE_PUBLIC_TEXT = /[<>]|javascript:|data:text\/html/i;
 const PROFILE_SPEC_LIMITS = {
   edge_profile_mm: [0, 500],
@@ -39,6 +40,10 @@ function cleanText(value: unknown, maxLength: number): string {
 
 function cleanNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : fallback;
+}
+
+function cleanFiniteNumberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function cleanPublicText(value: unknown, maxLength: number): string {
@@ -78,6 +83,10 @@ function cleanSectionImageUrls(value: unknown): readonly string[] {
         return false;
       }
     });
+}
+
+function cleanVisualIconUrl(value: unknown): string | null {
+  return cleanSectionImageUrls(typeof value === 'string' ? [value] : [])[0] ?? null;
 }
 
 function cleanProfileSpec(value: unknown): BalconyProfileSpec | null {
@@ -174,6 +183,7 @@ function cleanOptions(value: unknown): readonly CatalogOption[] {
         label,
         description,
         features: cleanFeatureList(source['features']),
+        visual_icon_url: cleanVisualIconUrl(source['visual_icon_url']),
         section_image_urls: cleanSectionImageUrls(source['section_image_urls']),
         profile_spec: cleanProfileSpec(source['profile_spec']),
         sort_order: cleanNumber(source['sort_order']),
@@ -212,12 +222,26 @@ function cleanFields(value: unknown): readonly CatalogField[] {
       if (fieldType === 'select' && options.length === 0) {
         return null;
       }
+      const unit = cleanText(source['unit'], 16);
+      const minValue = cleanFiniteNumberOrNull(source['min_value']);
+      const maxValue = cleanFiniteNumberOrNull(source['max_value']);
+      const step = cleanFiniteNumberOrNull(source['step']);
+      if (
+        fieldType === 'number' &&
+        (minValue === null || maxValue === null || step === null || minValue > maxValue || step <= 0)
+      ) {
+        return null;
+      }
       return {
         id: cleanNumber(source['id']),
         key,
         label,
         help_text: helpText,
         field_type: fieldType as CatalogFieldType,
+        unit: fieldType === 'number' ? unit : '',
+        min_value: fieldType === 'number' ? minValue : null,
+        max_value: fieldType === 'number' ? maxValue : null,
+        step: fieldType === 'number' ? step : null,
         required: source['required'] === true,
         sort_order: cleanNumber(source['sort_order']),
         options,
@@ -246,6 +270,13 @@ export function sanitizePublicCatalog(value: unknown): CatalogResponse {
       const name = cleanText(product['name'], 120);
       const description = cleanText(product['description'], 1000);
       const mark = cleanText(product['mark'], 8);
+      const rawMaterialGroup = product['material_group'];
+      const materialGroup: CatalogMaterialGroup =
+        rawMaterialGroup === 'aluminium' || rawMaterialGroup === 'pvc'
+          ? rawMaterialGroup
+          : key.startsWith('pvc_') || key === 'flyscreen'
+            ? 'pvc'
+            : 'aluminium';
       const measurement = cleanMeasurement(product['measurement']);
       if (
         !isSafeCatalogKey(key) ||
@@ -259,6 +290,7 @@ export function sanitizePublicCatalog(value: unknown): CatalogResponse {
       }
       return {
         key,
+        material_group: materialGroup,
         name,
         description,
         mark,

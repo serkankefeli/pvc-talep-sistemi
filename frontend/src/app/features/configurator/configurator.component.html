@@ -99,17 +99,57 @@
           <button type="button" class="text-button" (click)="loadCatalog()">Yeniden dene</button>
         </div>
       }
-      <div class="product-grid">
-        @for (product of productChoices(); track product.key) {
-          <button type="button" class="product-card" (click)="selectProduct(product.key)">
-            <span>
-              <strong>{{ product.name }}</strong>
-              <small>{{ product.description }}</small>
-            </span>
-            <span class="arrow" aria-hidden="true">→</span>
+      @if (!selectedMaterialGroup()) {
+        <section class="material-selection" aria-labelledby="material-selection-title">
+          <div class="material-selection-heading">
+            <p class="eyebrow">ÖNCE ANA KATEGORİ</p>
+            <h3 id="material-selection-title">Hangi doğrama türü için talep oluşturacaksınız?</h3>
+            <p>Ürünleri doğru seçeneklerle gösterebilmemiz için malzeme grubunu seçin.</p>
+          </div>
+          <div class="material-grid">
+            @for (material of materialChoices; track material.value) {
+              <button
+                type="button"
+                class="material-card"
+                [attr.data-material-group]="material.value"
+                (click)="selectMaterialGroup(material.value)"
+              >
+                <span class="material-mark" aria-hidden="true">{{ material.mark }}</span>
+                <span>
+                  <strong>{{ material.label }}</strong>
+                  <small>{{ material.description }}</small>
+                </span>
+                <span class="arrow" aria-hidden="true">→</span>
+              </button>
+            }
+          </div>
+        </section>
+      } @else {
+        <div class="product-group-heading">
+          <div>
+            <p class="eyebrow">SEÇİLEN ANA KATEGORİ</p>
+            <h3>
+              {{ selectedMaterialGroup() === 'pvc' ? 'PVC Doğrama' : 'Alüminyum Doğrama' }}
+            </h3>
+          </div>
+          <button type="button" class="text-button" (click)="clearMaterialGroup()">
+            Ana kategoriyi değiştir
           </button>
-        }
-      </div>
+        </div>
+        <div class="product-grid grouped-products">
+          @for (product of visibleProductChoices(); track product.key) {
+            <button type="button" class="product-card" (click)="selectProduct(product.key)">
+              <span>
+                <strong>{{ product.name }}</strong>
+                <small>{{ product.description }}</small>
+              </span>
+              <span class="arrow" aria-hidden="true">→</span>
+            </button>
+          } @empty {
+            <p class="empty-product-group">Bu kategoride yayında bir ürün bulunmuyor.</p>
+          }
+        </div>
+      }
     }
     <p class="privacy-note">
       Girdiğiniz ölçüler ve iletişim bilgileriniz yalnızca talebinizin değerlendirilmesi için
@@ -345,68 +385,358 @@
           <input id="quantity" type="number" min="1" max="100" formControlName="quantity" />
         </div>
 
-        <section class="dynamic-fields field-wide" [formGroup]="catalogForm()">
-          <div class="mini-heading">
-            <div>
-              <p class="eyebrow">SEÇENEKLER</p>
-              <h3>Ürününüzü biraz daha tarif edin</h3>
+        @if (visualDetailFields().length) {
+          <section class="visual-configurator field-wide" [formGroup]="catalogForm()">
+            <div class="mini-heading">
+              <div>
+                <p class="eyebrow">GÖRSEL SEÇİM</p>
+                <h3>Çizimde görmek istediğiniz parçayı seçin</h3>
+              </div>
+              <span>Seçimleriniz çizime yansır</span>
             </div>
-            @if (usingFallbackCatalog()) {
-              <span>Temel katalog</span>
-            }
-          </div>
-          <div class="dynamic-field-grid">
-            @for (field of currentDetailFields(); track field.id; let index = $index) {
-              @switch (field.field_type) {
-                @case ('select') {
-                  <div class="field">
-                    <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
-                    <select
-                      [id]="'catalog-detail-' + index"
-                      [formControlName]="field.key"
-                      [attr.aria-required]="field.required"
-                    >
-                      <option value="" disabled>Seçin</option>
-                      @for (option of field.options; track option.id) {
-                        <option [value]="option.value">{{ option.label }}</option>
+            <div class="visual-configurator-layout">
+              <nav class="visual-selection-rail" aria-label="Ürün seçim başlıkları">
+                @for (field of visualDetailFields(); track field.id) {
+                  <button
+                    type="button"
+                    class="visual-field-button"
+                    [class.active]="activeVisualField()?.key === field.key"
+                    [attr.aria-current]="activeVisualField()?.key === field.key ? 'step' : null"
+                    (click)="selectVisualField(field.key)"
+                  >
+                    <span class="visual-field-icon" aria-hidden="true">
+                      @switch (visualFieldIconKind(field)) {
+                        @case ('layout') {
+                          <svg viewBox="0 0 32 32" focusable="false">
+                            <rect x="4" y="4" width="24" height="24" rx="1" />
+                            <line x1="16" y1="4" x2="16" y2="28" />
+                            <line x1="4" y1="16" x2="28" y2="16" />
+                          </svg>
+                        }
+                        @case ('glazing') {
+                          <svg viewBox="0 0 32 32" focusable="false">
+                            <rect x="5" y="5" width="22" height="22" rx="1" />
+                            <rect x="9" y="9" width="14" height="14" />
+                            <line x1="12" y1="7" x2="12" y2="25" />
+                          </svg>
+                        }
+                        @case ('color') {
+                          <svg viewBox="0 0 32 32" focusable="false">
+                            <circle cx="16" cy="16" r="10" />
+                            <path d="M16 6v20M6 16h20" />
+                          </svg>
+                        }
+                        @default {
+                          <svg viewBox="0 0 32 32" focusable="false">
+                            <path d="M6 25V7h19v18H6Z" />
+                            <path d="M6 12h19M12 12v13M19 12v13" />
+                          </svg>
+                        }
                       }
-                    </select>
+                    </span>
+                    <span class="visual-field-copy">
+                      <strong>{{ field.label }}</strong>
+                      <small>{{ visualFieldSelectionLabel(field) }}</small>
+                    </span>
+                    <span class="visual-field-arrow" aria-hidden="true">›</span>
+                  </button>
+                }
+              </nav>
+              <div class="visual-selection-stage">
+                @if (activeVisualField(); as field) {
+                  <div class="visual-stage-heading">
+                    <div>
+                      <p class="eyebrow">{{ field.label }}</p>
+                      <h4>{{ visualFieldSelectionLabel(field) }}</h4>
+                    </div>
                     @if (field.help_text) {
-                      <small>{{ field.help_text }}</small>
+                      <p>{{ field.help_text }}</p>
                     }
                   </div>
+                  <div
+                    class="visual-option-grid"
+                    [class.system-model-grid]="field.key === 'system_model'"
+                  >
+                    @for (option of field.options; track option.id) {
+                      <button
+                        type="button"
+                        class="visual-option-card"
+                        [class.selected]="activeVisualOption()?.value === option.value"
+                        [attr.aria-pressed]="activeVisualOption()?.value === option.value"
+                        (click)="selectVisualOption(field, option.value)"
+                      >
+                        <span class="visual-option-art" aria-hidden="true">
+                          @if (option.visual_icon_url; as imageUrl) {
+                            <img [src]="imageUrl" [alt]="" loading="lazy" decoding="async" />
+                          } @else {
+                            @if (visualOptionIconKind(field, option).startsWith('color_')) {
+                              <span
+                                class="visual-color-swatch"
+                                [attr.data-color]="option.value"
+                              ></span>
+                            } @else {
+                              @switch (visualOptionIconKind(field, option)) {
+                                @case ('fixed') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="10" y="8" width="44" height="48" />
+                                    <rect x="16" y="14" width="32" height="36" />
+                                  </svg>
+                                }
+                                @case ('single_sash') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="8" width="46" height="48" />
+                                    <rect x="15" y="14" width="34" height="36" />
+                                    <path d="M17 48 47 17M17 48 39 27" />
+                                  </svg>
+                                }
+                                @case ('double_sash') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="7" y="8" width="50" height="48" />
+                                    <path d="M32 8v48M13 49l17-27M51 49 34 22" />
+                                    <path d="M30 8v48M34 8v48" />
+                                  </svg>
+                                }
+                                @case ('tilt_turn') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="8" width="46" height="48" />
+                                    <rect x="15" y="14" width="34" height="36" />
+                                    <path d="M17 48 47 17M17 17h30M17 17l7 7" />
+                                  </svg>
+                                }
+                                @case ('tilt') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="8" width="46" height="48" />
+                                    <path d="M15 18h34M15 18l8-7M49 18l-8-7" />
+                                  </svg>
+                                }
+                                @case ('transom') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="8" y="8" width="48" height="48" />
+                                    <path d="M8 23h48M32 23v33M18 23v33" />
+                                  </svg>
+                                }
+                                @case ('grid') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="7" y="8" width="50" height="48" />
+                                    <path d="M24 8v48M40 8v48M7 32h50" />
+                                  </svg>
+                                }
+                                @case ('sliding') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="7" y="9" width="50" height="46" />
+                                    <path d="M32 9v46M17 32h22M34 26l7 6-7 6" />
+                                  </svg>
+                                }
+                                @case ('special_sliding') {
+                                  <app-special-system-model
+                                    [model]="option.value"
+                                    [label]="option.label"
+                                    [compact]="true"
+                                    [profileColor]="currentFrameColor()"
+                                  />
+                                }
+                                @case ('pivot') {
+                                  <app-special-system-model
+                                    [model]="option.value"
+                                    [label]="option.label"
+                                    [compact]="true"
+                                    [profileColor]="currentFrameColor()"
+                                    [pivotOpeningDirection]="pivotOpeningDirection()"
+                                    [infillType]="pivotInfillType()"
+                                    [verticalMullionCount]="pivotVerticalMullionCount()"
+                                    [horizontalMullionCount]="pivotHorizontalMullionCount()"
+                                    [widthMm]="productForm.controls.width.value ?? 1000"
+                                    [heightMm]="productForm.controls.height.value ?? 1000"
+                                    [frameProfileWidthMm]="technicalNumber('frame_profile_width_mm', 60)"
+                                    [mullionProfileWidthMm]="technicalNumber('mullion_profile_width_mm', 45)"
+                                    [glazingBarWidthMm]="technicalNumber('glazing_bar_width_mm', 20)"
+                                    [pivotAxisOffsetMm]="optionalTechnicalNumber('pivot_axis_offset_mm')"
+                                    [hingeType]="technicalText('hinge_type')"
+                                    [lockType]="technicalText('lock_type')"
+                                    [lockHeightMm]="optionalTechnicalNumber('lock_height_mm')"
+                                  />
+                                }
+                                @case ('folding') {
+                                  <app-special-system-model
+                                    [model]="option.value"
+                                    [label]="option.label"
+                                    [compact]="true"
+                                    [profileColor]="currentFrameColor()"
+                                  />
+                                }
+                                @case ('double_glazing') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="8" y="9" width="48" height="46" />
+                                    <rect x="16" y="16" width="32" height="32" />
+                                    <path d="M20 12v40M44 12v40" />
+                                  </svg>
+                                }
+                                @case ('triple_glazing') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="8" y="9" width="48" height="46" />
+                                    <path d="M18 9v46M28 9v46M38 9v46M48 9v46" />
+                                  </svg>
+                                }
+                                @case ('laminated') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="9" width="46" height="46" />
+                                    <path d="m14 48 36-32M14 16l36 32" />
+                                    <path d="m22 48 28-25M14 25l28 25" />
+                                  </svg>
+                                }
+                                @case ('tempered') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="9" width="46" height="46" />
+                                    <path d="m32 14 17 18-17 18-17-18 17-18Z" />
+                                  </svg>
+                                }
+                                @case ('panel') {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="9" width="46" height="46" />
+                                    <path d="M14 45h36M14 50h36" />
+                                  </svg>
+                                }
+                                @default {
+                                  <svg viewBox="0 0 64 64" focusable="false">
+                                    <rect x="9" y="9" width="46" height="46" />
+                                    <path d="M18 18h28v28H18zM18 32h28M32 18v28" />
+                                  </svg>
+                                }
+                              }
+                            }
+                          }
+                        </span>
+                        <span class="visual-option-copy">
+                          <strong>{{ option.label }}</strong>
+                          @if (option.description) {
+                            <small>{{ option.description }}</small>
+                          } @else if (option.features?.length) {
+                            <small>{{ option.features[0] }}</small>
+                          } @else {
+                            <small>Bu seçimi çizimde görüntüleyin.</small>
+                          }
+                        </span>
+                        <span class="visual-option-check" aria-hidden="true">✓</span>
+                      </button>
+                    }
+                  </div>
+                  @if (activeVisualOption(); as selectedOption) {
+                    <div class="visual-selection-note">
+                      <span class="visual-selection-note-mark" aria-hidden="true">i</span>
+                      <div>
+                        <strong>{{ selectedOption.label }}</strong>
+                        @if (selectedOption.description) {
+                          <p>{{ selectedOption.description }}</p>
+                        } @else {
+                          <p>Seçiminiz sağdaki canlı çizime ve talep özetine eklenir.</p>
+                        }
+                      </div>
+                    </div>
+                  }
                 }
-                @case ('boolean') {
-                  <label class="dynamic-check">
-                    <input type="checkbox" [formControlName]="field.key" />
-                    <span>
-                      <strong>{{ field.label }}</strong>
+              </div>
+            </div>
+          </section>
+        }
+
+        @if (nonVisualDetailFields().length) {
+          <section class="dynamic-fields field-wide" [formGroup]="catalogForm()">
+            <div class="mini-heading">
+              <div>
+                <p class="eyebrow">SEÇENEKLER</p>
+                <h3>Ürününüzü biraz daha tarif edin</h3>
+              </div>
+              @if (usingFallbackCatalog()) {
+                <span>Temel katalog</span>
+              }
+            </div>
+            <div class="dynamic-field-grid">
+              @for (field of nonVisualDetailFields(); track field.id; let index = $index) {
+                @switch (field.field_type) {
+                  @case ('select') {
+                    <div class="field">
+                      <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
+                      <select
+                        [id]="'catalog-detail-' + index"
+                        [formControlName]="field.key"
+                        [attr.aria-required]="field.required"
+                      >
+                        <option value="" disabled>Seçin</option>
+                        @for (option of field.options; track option.id) {
+                          <option [value]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
                       @if (field.help_text) {
                         <small>{{ field.help_text }}</small>
                       }
-                    </span>
-                  </label>
-                }
-                @case ('text') {
-                  <div class="field">
-                    <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
-                    <input
-                      [id]="'catalog-detail-' + index"
-                      type="text"
-                      maxlength="500"
-                      [formControlName]="field.key"
-                    />
-                    @if (field.help_text) {
-                      <small>{{ field.help_text }}</small>
-                    }
-                  </div>
+                    </div>
+                  }
+                  @case ('boolean') {
+                    <label class="dynamic-check">
+                      <input type="checkbox" [formControlName]="field.key" />
+                      <span>
+                        <strong>{{ field.label }}</strong>
+                        @if (field.help_text) {
+                          <small>{{ field.help_text }}</small>
+                        }
+                      </span>
+                    </label>
+                  }
+                  @case ('text') {
+                    <div class="field">
+                      <label [for]="'catalog-detail-' + index">{{ field.label }}</label>
+                      <input
+                        [id]="'catalog-detail-' + index"
+                        type="text"
+                        maxlength="500"
+                        [formControlName]="field.key"
+                      />
+                      @if (field.help_text) {
+                        <small>{{ field.help_text }}</small>
+                      }
+                    </div>
+                  }
+                  @case ('number') {
+                    <div class="field numeric-field">
+                      <label [for]="'catalog-detail-' + index">
+                        {{ field.label }}
+                        @if (field.unit) {
+                          <span>{{ field.unit }}</span>
+                        }
+                      </label>
+                      <div class="input-with-unit">
+                        <input
+                          [id]="'catalog-detail-' + index"
+                          type="number"
+                          inputmode="decimal"
+                          [min]="field.min_value ?? null"
+                          [max]="field.max_value ?? null"
+                          [step]="field.step ?? 1"
+                          [formControlName]="field.key"
+                          [attr.aria-required]="field.required"
+                          placeholder="Seriye göre"
+                        />
+                        @if (field.unit) {
+                          <span aria-hidden="true">{{ field.unit }}</span>
+                        }
+                      </div>
+                      @if (field.help_text) {
+                        <small>{{ field.help_text }}</small>
+                      }
+                      @if (catalogForm().controls[field.key]?.touched && catalogForm().controls[field.key]?.invalid) {
+                        <small class="error">
+                          {{ field.min_value }}–{{ field.max_value }} {{ field.unit || '' }} arasında bir değer girin.
+                        </small>
+                      }
+                    </div>
+                  }
                 }
               }
-            }
-          </div>
-        </section>
+            </div>
+          </section>
+        }
 
-        @if (selectedOptionDetails().length) {
+        @if (!isJoinery() && selectedOptionDetails().length) {
           <section
             class="option-detail-list field-wide"
             aria-label="Seçilen seçeneklerin açıklamaları"
@@ -472,9 +802,74 @@
               </p>
             }
             <p class="joinery-editor-help">
-              Seçtiğiniz standart düzen ölçünüze otomatik yerleşir. Her bölümün çalışma biçimini
-              ayrı seçebilirsiniz; sağdaki çizim aynı anda güncellenir.
+              Önce standart düzen ölçünüze otomatik yerleşir. Bölüm genişliklerini ve varsa üst
+              kayıt yüksekliğini milimetre olarak değiştirebilirsiniz; sağdaki çizim aynı anda
+              güncellenir.
             </p>
+            @if (joineryColumns().length > 1 || joineryRows().length > 1) {
+              <div class="joinery-dimension-editor">
+                <div class="joinery-dimension-heading">
+                  <div>
+                    <strong>Özel kayıt ölçüleri</strong>
+                    <small>Toplam kasa ölçüsünün içindeki bölüm dağılımını belirleyin.</small>
+                  </div>
+                  <button type="button" class="text-button" (click)="resetJoineryDimensions()">
+                    Eşit / standart dağılıma dön
+                  </button>
+                </div>
+                @if (joineryDimensionError()) {
+                  <p class="error" role="alert">{{ joineryDimensionError() }}</p>
+                }
+                @if (joineryColumns().length > 1) {
+                  <fieldset>
+                    <legend>Dikey bölümlerin genişliği</legend>
+                    <div class="joinery-dimension-grid">
+                      @for (column of joineryColumns(); track column.startPercent; let index = $index) {
+                        <label>
+                          <span>{{ index + 1 }}. bölüm</span>
+                          <span class="dimension-input">
+                            <input
+                              type="number"
+                              min="100"
+                              step="10"
+                              [value]="joineryColumnWidthMm(index)"
+                              (input)="updateJoineryColumnWidth(index, $any($event.target).value)"
+                            />
+                            <b>mm</b>
+                          </span>
+                        </label>
+                      }
+                    </div>
+                  </fieldset>
+                }
+                @if (joineryRows().length > 1) {
+                  <fieldset>
+                    <legend>Yatay bölümlerin yüksekliği</legend>
+                    <div class="joinery-dimension-grid">
+                      @for (row of joineryRows(); track row.startPercent; let index = $index) {
+                        <label>
+                          <span>{{ index === 0 ? 'Üst bölüm' : index + 1 + '. bölüm' }}</span>
+                          <span class="dimension-input">
+                            <input
+                              type="number"
+                              min="100"
+                              step="10"
+                              [value]="joineryRowHeightMm(index)"
+                              (input)="updateJoineryRowHeight(index, $any($event.target).value)"
+                            />
+                            <b>mm</b>
+                          </span>
+                        </label>
+                      }
+                    </div>
+                  </fieldset>
+                }
+                <p class="joinery-dimension-note">
+                  Bir ölçüyü değiştirdiğinizde kalan ölçü diğer bölümlere orantılı dağıtılır. Kasa
+                  ve ara kayıt profil kalınlıkları çizim hesabında ayrıca düşülür.
+                </p>
+              </div>
+            }
             <div class="joinery-panel-grid">
               @for (panel of joineryPanels(); track panel.slot; let index = $index) {
                 <article class="joinery-panel-card" [class.door-panel]="panel.role === 'door'">
@@ -637,6 +1032,14 @@
                   }
                 </article>
               }
+              @if (technicalWarnings().length) {
+                <div class="technical-warning" role="alert">
+                  <strong>Teknik ölçü uyarısı</strong>
+                  @for (warning of technicalWarnings(); track warning) {
+                    <p>{{ warning }}</p>
+                  }
+                </div>
+              }
             }
           </section>
         }
@@ -658,8 +1061,18 @@
           </div>
         }
 
+        @if (catalogSelectionError()) {
+          <p class="submit-error field-wide" role="alert">
+            Devam etmek için şu seçimleri tamamlayın:
+            <strong>{{ missingCatalogSelectionLabels().join(', ') }}</strong>
+          </p>
+        }
+
         <div class="form-actions field-wide">
           <button type="button" class="button secondary" (click)="goBack()">Geri</button>
+          <button type="button" class="button secondary" (click)="addAnotherDrawing()">
+            Projeye ekle ve başka ürün çiz
+          </button>
           <button type="submit" class="button primary">İletişim adımına geç</button>
         </div>
       </form>
@@ -690,6 +1103,7 @@
         <app-installation-scene
           [item]="installationPreviewItem()"
           [productName]="installationPreviewProductName()"
+          [specialModelName]="selectedSpecialModelOption()?.label"
           [measurementVariant]="currentProduct().measurement.variant"
           [measurementReady]="measurementReady()"
           [joinerySelectionReady]="!isJoinery() || joinerySelectionsComplete()"
@@ -703,9 +1117,30 @@
   @if (step() === 3) {
     <div class="contact-layout">
       <aside class="summary-card">
-        <p class="eyebrow">SEÇİMİNİZ</p>
-        <app-product-preview [item]="currentItem()" [productName]="currentProduct().name" />
+        <p class="eyebrow">ÖN PROJE · {{ projectDrawings().length }} ÇİZİM</p>
+        <div class="project-drawing-list">
+          @for (drawing of projectDrawings(); track drawing.id; let index = $index) {
+            <article class="project-drawing-card">
+              <div class="project-drawing-heading">
+                <strong>{{ index + 1 }}. {{ drawing.productName }}</strong>
+                @if (projectDrawings().length > 1) {
+                  <button type="button" class="text-button" (click)="removeProjectDrawing(drawing.id)">
+                    Çıkar
+                  </button>
+                }
+              </div>
+              <app-product-preview [item]="drawing.item" [productName]="drawing.productName" />
+              <p class="drawing-measurement">
+                {{ drawing.item.width_mm }} × {{ drawing.item.height_mm }} mm ·
+                {{ drawing.item.quantity }} adet
+              </p>
+            </article>
+          }
+        </div>
         <button type="button" class="text-button" (click)="goToStep(2)">Ölçüleri düzenle</button>
+        <button type="button" class="button secondary print-button" (click)="printPreProject()">
+          Ölçülü ön projeyi PDF / yazdır
+        </button>
       </aside>
 
       <form class="contact-form" [formGroup]="contactForm" (ngSubmit)="submit()">

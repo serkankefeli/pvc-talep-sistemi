@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+import { DOCUMENT, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -10,17 +10,22 @@ import {
   viewChild,
 } from '@angular/core';
 import {
+  AbstractControl,
   FormControl,
   FormRecord,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
   Validators,
 } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map, Subscription } from 'rxjs';
 import {
+  CatalogAnswerValue,
   CatalogAnswers,
   CatalogField,
+  CatalogMaterialGroup,
   CatalogOption,
   CatalogProduct,
   isProductType,
@@ -51,10 +56,37 @@ import { installationReferenceFor } from '../../shared/installation-scene-geomet
 import { buildJoineryPanels, JoineryLayout } from '../../shared/joinery-geometry';
 import { MeasurementGuideComponent } from '../../shared/measurement-guide.component';
 import { ProductPreviewComponent } from '../../shared/product-preview.component';
+import { frameColor } from '../../shared/preview-geometry';
+import { SpecialSystemModelComponent } from '../../shared/special-system-model.component';
 
 interface SelectOption<T extends string = string> {
   readonly value: T;
   readonly label: string;
+}
+
+function numericStep(step: number, base: number): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value;
+    if (value === null || value === '' || typeof value !== 'number' || !Number.isFinite(value)) {
+      return null;
+    }
+    const count = (value - base) / step;
+    return Math.abs(count - Math.round(count)) <= 1e-7 ? null : { numericStep: true };
+  };
+}
+
+interface MaterialChoice {
+  readonly value: CatalogMaterialGroup;
+  readonly label: string;
+  readonly description: string;
+  readonly mark: string;
+}
+
+interface ProjectDrawing {
+  readonly id: number;
+  readonly item: PublicRequestItem;
+  readonly productName: string;
+  readonly materialGroup: CatalogMaterialGroup;
 }
 
 type UsageControl = 'usagePrimary' | 'usageSecondary' | 'usageTertiary';
@@ -69,6 +101,7 @@ interface UsageQuestion {
 type OpeningSelection = 'none' | 'left' | 'right' | 'inward' | 'outward' | 'sliding';
 type JoineryPanelOpeningSelection = JoineryPanel['opening'] | '';
 type JoineryPanelHingeSelection = Exclude<JoineryPanel['hinge'], 'none'> | '';
+type CatalogFormValue = CatalogAnswerValue | null;
 
 const JOINERY_OPENING_VALUES = new Set<JoineryPanel['opening']>([
   'fixed',
@@ -103,6 +136,11 @@ interface ProfileSpecEntry {
   readonly label: string;
   readonly value: number;
   readonly unit: 'mm' | 'adet';
+}
+
+interface JoineryDimensionGroup {
+  readonly startPercent: number;
+  readonly sizePercent: number;
 }
 
 const PROFILE_SPEC_LABELS: readonly Omit<ProfileSpecEntry, 'value'>[] = [
@@ -471,6 +509,7 @@ export const USAGE_QUESTIONS: Readonly<Record<ProductType, readonly UsageQuestio
     BalconyPlanPreviewComponent,
     MeasurementGuideComponent,
     ProductPreviewComponent,
+    SpecialSystemModelComponent,
   ],
   templateUrl: './configurator.component.html',
   styleUrl: './configurator.component.scss',
@@ -480,6 +519,8 @@ export class ConfiguratorComponent {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(RequestApiService);
   private readonly catalog = inject(CatalogService);
+  private readonly document = inject(DOCUMENT);
+  private nextDrawingId = 1;
   private catalogSubscriptions: Subscription[] = [];
   private readonly configuratorTitle =
     viewChild<ElementRef<HTMLHeadingElement>>('configuratorTitle');
@@ -489,12 +530,36 @@ export class ConfiguratorComponent {
   readonly usingFallbackCatalog = signal(false);
   readonly products = signal<readonly CatalogProduct[]>(this.catalog.fallbackProducts);
   readonly productChoices = computed(() => this.products());
+  readonly selectedMaterialGroup = signal<CatalogMaterialGroup | null>(null);
+  readonly materialChoices: readonly MaterialChoice[] = [
+    {
+      value: 'pvc',
+      label: 'PVC Doğrama',
+      description: 'PVC pencere, kapı, birleşik doğrama ve sineklik çözümleri',
+      mark: 'PVC',
+    },
+    {
+      value: 'aluminium',
+      label: 'Alüminyum Doğrama',
+      description: 'Alüminyum sistemler, giyotin cam, cephe ve balkon çözümleri',
+      mark: 'AL',
+    },
+  ];
+  readonly visibleProductChoices = computed(() => {
+    const material = this.selectedMaterialGroup();
+    return material
+      ? this.productChoices().filter((product) => product.material_group === material)
+      : [];
+  });
   readonly reviewMessage = PUBLIC_REVIEW_MESSAGE;
   readonly step = signal<1 | 2 | 3 | 4>(1);
   readonly submitting = signal(false);
   readonly submitError = signal<string | null>(null);
   readonly joinerySelectionError = signal(false);
+  readonly catalogSelectionError = signal(false);
   readonly completion = signal<PublicRequestCreated | null>(null);
+  readonly projectDrawings = signal<readonly ProjectDrawing[]>([]);
+  readonly activeDrawingId = signal<number | null>(null);
 
   readonly openings: readonly SelectOption<OpeningSelection>[] = [
     { value: 'left', label: 'Sol açılım' },
@@ -616,6 +681,33 @@ export class ConfiguratorComponent {
       )
       .sort((left, right) => left.sort_order - right.sort_order),
   );
+  readonly visualDetailFields = computed(() =>
+    this.currentDetailFields().filter(
+      (field) => field.field_type === 'select' && field.options.length > 0,
+    ),
+  );
+  readonly nonVisualDetailFields = computed(() =>
+    this.currentDetailFields().filter(
+      (field) => field.field_type !== 'select' || field.options.length === 0,
+    ),
+  );
+  readonly activeVisualFieldKey = signal('');
+  readonly activeVisualField = computed<CatalogField | null>(() => {
+    const fields = this.visualDetailFields();
+    return fields.find((field) => field.key === this.activeVisualFieldKey()) ?? fields[0] ?? null;
+  });
+  readonly activeVisualOption = computed<CatalogOption | null>(() => {
+    const field = this.activeVisualField();
+    const value = field ? this.catalogAnswers()[field.key] : '';
+    return field?.options.find((option) => option.value === value) ?? null;
+  });
+  readonly selectedSpecialModelOption = computed<CatalogOption | null>(() => {
+    const field = this.currentProduct().fields.find(
+      (candidate) => candidate.key === 'system_model' && candidate.field_type === 'select',
+    );
+    const value = this.catalogAnswers()['system_model'];
+    return field?.options.find((option) => option.value === value) ?? null;
+  });
   readonly currentSeriesField = computed(
     () =>
       this.currentProduct().fields.find(
@@ -658,9 +750,10 @@ export class ConfiguratorComponent {
       this.selectedBalconySystemOption()?.profile_spec ??
       DEFAULT_BALCONY_PROFILE_SPEC),
   }));
-  readonly catalogForm = signal(new FormRecord<FormControl<string | boolean>>({}));
+  readonly catalogForm = signal(new FormRecord<FormControl<CatalogFormValue>>({}));
   readonly catalogAnswers = signal<CatalogAnswers>({});
   readonly joineryPanels = signal<readonly JoineryPanel[]>([]);
+  readonly joineryDimensionError = signal<string | null>(null);
   /**
    * The drawing keeps a safe, renderable panel model, while the form keeps
    * the customer's explicit choices separately. This lets a select start at
@@ -669,6 +762,27 @@ export class ConfiguratorComponent {
   readonly joineryPanelSelections = signal<readonly JoineryPanelOpeningSelection[]>([]);
   readonly joineryHingeSelections = signal<readonly JoineryPanelHingeSelection[]>([]);
   readonly currentItem = computed(() => this.buildItem(this.productValue()));
+  readonly currentFrameColor = computed(() => frameColor(this.currentItem().color));
+  readonly technicalWarnings = computed<readonly string[]>(() => {
+    const series = this.selectedSeriesOption();
+    const spec = series?.profile_spec;
+    const item = this.currentItem();
+    if (!spec || (item.product_type !== 'pvc_window' && item.product_type !== 'pvc_door')) {
+      return [];
+    }
+    const panels = 'panels' in item && Array.isArray(item.panels) ? item.panels : [];
+    const oversized = panels
+      .map((panel, index) => ({
+        label: panel.label || `${index + 1}. kanat`,
+        width: Math.round((item.width_mm * panel.width_percent) / 100),
+      }))
+      .filter((panel) => panel.width > spec.max_glass_width_mm);
+    return oversized.map(
+      (panel) =>
+        `${panel.label} yaklaşık ${panel.width} mm. ${series?.label} için yönetimde tanımlı ` +
+        `maksimum kanat/cam eni ${spec.max_glass_width_mm} mm. Teknik ekip kontrol etmelidir.`,
+    );
+  });
   readonly isBalcony = computed(() => this.productType() === 'balcony_enclosure');
   readonly selectedBalconySegmentIndex = signal(0);
   readonly balconyShapeField = computed(
@@ -801,6 +915,12 @@ export class ConfiguratorComponent {
       }));
     return field ? managed : this.usingFallbackCatalog() ? FALLBACK_HINGE_OPTIONS : [];
   });
+  readonly joineryColumns = computed<readonly JoineryDimensionGroup[]>(() =>
+    this.joineryDimensionGroups('x_percent', 'width_percent'),
+  );
+  readonly joineryRows = computed<readonly JoineryDimensionGroup[]>(() =>
+    this.joineryDimensionGroups('y_percent', 'height_percent'),
+  );
   readonly selectedOptionDetails = computed(() => {
     const answers = this.catalogAnswers();
     return this.currentDetailFields().flatMap((field) => {
@@ -850,6 +970,123 @@ export class ConfiguratorComponent {
     }));
   }
 
+  selectVisualField(key: string): void {
+    if (this.visualDetailFields().some((field) => field.key === key)) {
+      this.activeVisualFieldKey.set(key);
+    }
+  }
+
+  selectVisualOption(field: CatalogField, value: string): void {
+    const control = this.catalogForm().controls[field.key];
+    if (!control || field.field_type !== 'select') {
+      return;
+    }
+    control.setValue(value);
+    this.activeVisualFieldKey.set(field.key);
+  }
+
+  visualFieldIconKind(field: CatalogField): string {
+    const icons: Readonly<Record<string, string>> = {
+      layout: 'layout',
+      template: 'layout',
+      glazing: 'glazing',
+      color: 'color',
+      threshold: 'profile',
+      mesh_type: 'mesh',
+      screen_type: 'mesh',
+      panel_count: 'grid',
+      glass_type: 'glazing',
+      cladding_type: 'cladding',
+      panel_orientation: 'orientation',
+      installation_system: 'profile',
+      substructure_material: 'profile',
+    };
+    return icons[field.key] ?? 'generic';
+  }
+
+  visualOptionIconKind(field: CatalogField, option: CatalogOption): string {
+    if (option.visual_icon_url) {
+      return 'image';
+    }
+    const icons: Readonly<Record<string, string>> = {
+      fixed: 'fixed',
+      single_sash: 'single_sash',
+      double_sash: 'double_sash',
+      tilt_turn: 'tilt_turn',
+      tilt: 'tilt',
+      transom: 'transom',
+      custom_grid: 'grid',
+      sliding: 'sliding',
+      window_door: 'window_door',
+      door_window: 'door_window',
+      window_door_window: 'window_door_window',
+      double_glazing: 'double_glazing',
+      triple_glazing: 'triple_glazing',
+      laminated: 'laminated',
+      tempered: 'tempered',
+      panel: 'panel',
+      pleated: 'pleated',
+      hinged: 'hinged',
+      roller: 'roller',
+    };
+    if (field.key === 'color') {
+      return `color_${option.value}`;
+    }
+    if (option.value.startsWith('vw_') || option.value.startsWith('hs_')) {
+      return 'special_sliding';
+    }
+    if (option.value.startsWith('pivot_')) {
+      return 'pivot';
+    }
+    if (option.value.startsWith('fold_')) {
+      return 'folding';
+    }
+    return icons[option.value] ?? this.visualFieldIconKind(field);
+  }
+
+  visualFieldSelectionLabel(field: CatalogField): string {
+    const value = this.catalogAnswers()[field.key];
+    return field.options.find((option) => option.value === value)?.label ?? 'Seçin';
+  }
+
+  pivotOpeningDirection(): 'none' | 'side' | 'up' {
+    const value = this.catalogAnswers()['pivot_opening_direction'];
+    return value === 'side' || value === 'up' ? value : 'none';
+  }
+
+  pivotInfillType(): 'glass' | 'panel' | 'mixed' {
+    const value = this.catalogAnswers()['infill_type'];
+    return value === 'panel' || value === 'mixed' ? value : 'glass';
+  }
+
+  pivotVerticalMullionCount(): number {
+    return this.pivotMullionCount('pivot_vertical_mullion_count');
+  }
+
+  pivotHorizontalMullionCount(): number {
+    return this.pivotMullionCount('pivot_horizontal_mullion_count');
+  }
+
+  technicalNumber(key: string, fallback: number): number {
+    const value = this.catalogAnswers()[key];
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  optionalTechnicalNumber(key: string): number | null {
+    const value = this.catalogAnswers()[key];
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  technicalText(key: string): string {
+    const value = this.catalogAnswers()[key];
+    return typeof value === 'string' ? value : '';
+  }
+
+  private pivotMullionCount(key: string): number {
+    const parsed = Number(this.catalogAnswers()[key]);
+    return Number.isInteger(parsed) ? Math.min(Math.max(parsed, 0), 8) : 0;
+  }
+
   constructor() {
     this.balconySegments.disable({ emitEvent: false });
     this.balconySegments.valueChanges
@@ -897,9 +1134,22 @@ export class ConfiguratorComponent {
     if (this.catalogLoading()) {
       return;
     }
+    const product = this.products().find((entry) => entry.key === type);
+    if (product) {
+      this.selectedMaterialGroup.set(product.material_group);
+    }
     this.productForm.controls.productType.setValue(type);
+    this.activeDrawingId.set(null);
     this.step.set(2);
     this.focusStepHeading();
+  }
+
+  selectMaterialGroup(material: CatalogMaterialGroup): void {
+    this.selectedMaterialGroup.set(material);
+  }
+
+  clearMaterialGroup(): void {
+    this.selectedMaterialGroup.set(null);
   }
 
   addBalconySegment(): void {
@@ -953,6 +1203,52 @@ export class ConfiguratorComponent {
     return this.joineryHingeSelections()[index] ?? '';
   }
 
+  joineryColumnWidthMm(index: number): number {
+    const width = this.productValue().width;
+    const group = this.joineryColumns()[index];
+    return width && group ? Math.round((width * group.sizePercent) / 100) : 0;
+  }
+
+  joineryRowHeightMm(index: number): number {
+    const height = this.productValue().height;
+    const group = this.joineryRows()[index];
+    return height && group ? Math.round((height * group.sizePercent) / 100) : 0;
+  }
+
+  updateJoineryColumnWidth(index: number, rawValue: string): void {
+    this.updateJoineryDimension('column', index, rawValue);
+  }
+
+  updateJoineryRowHeight(index: number, rawValue: string): void {
+    this.updateJoineryDimension('row', index, rawValue);
+  }
+
+  resetJoineryDimensions(): void {
+    const openingSelections = [...this.joineryPanelSelections()];
+    const hingeSelections = [...this.joineryHingeSelections()];
+    this.syncJoineryPanels(this.productType(), this.catalogAnswers());
+    const panels: readonly JoineryPanel[] = this.joineryPanels().map((panel, index) => {
+      const opening = openingSelections[index];
+      const hinge = hingeSelections[index];
+      if (!opening) {
+        return panel;
+      }
+      const nextHinge: JoineryPanel['hinge'] =
+        (opening === 'turn' || opening === 'tilt_turn') && (hinge === 'left' || hinge === 'right')
+          ? hinge
+          : 'none';
+      return {
+        ...panel,
+        opening,
+        hinge: nextHinge,
+      };
+    });
+    this.joineryPanels.set(panels);
+    this.joineryPanelSelections.set(openingSelections);
+    this.joineryHingeSelections.set(hingeSelections);
+    this.joineryDimensionError.set(null);
+  }
+
   updateJoineryPanelOpening(index: number, value: string): void {
     if (value !== '' && !JOINERY_OPENING_VALUES.has(value as JoineryPanel['opening'])) {
       return;
@@ -999,17 +1295,43 @@ export class ConfiguratorComponent {
   }
 
   goToContact(): void {
-    this.productForm.markAllAsTouched();
-    this.catalogForm().markAllAsTouched();
-    const joineryIncomplete = this.isJoinery() && !this.joinerySelectionsComplete();
-    this.joinerySelectionError.set(joineryIncomplete);
-    if (this.productForm.invalid || this.catalogForm().invalid || joineryIncomplete) {
+    if (!this.commitCurrentDrawing()) {
       return;
     }
     this.submitError.set(null);
     this.joinerySelectionError.set(false);
+    this.catalogSelectionError.set(false);
     this.step.set(3);
     this.focusStepHeading();
+  }
+
+  addAnotherDrawing(): void {
+    if (!this.commitCurrentDrawing()) {
+      return;
+    }
+    this.activeDrawingId.set(null);
+    this.selectedMaterialGroup.set(null);
+    this.step.set(1);
+    this.focusStepHeading();
+  }
+
+  removeProjectDrawing(id: number): void {
+    this.projectDrawings.update((drawings) => drawings.filter((drawing) => drawing.id !== id));
+    if (this.activeDrawingId() === id) {
+      this.activeDrawingId.set(null);
+    }
+  }
+
+  printPreProject(): void {
+    this.document.defaultView?.print();
+  }
+
+  missingCatalogSelectionLabels(): readonly string[] {
+    const form = this.catalogForm();
+    return this.currentProduct()
+      .fields.filter((field) => form.controls[field.key]?.invalid)
+      .map((field) => field.label)
+      .slice(0, 10);
   }
 
   goBack(): void {
@@ -1083,8 +1405,12 @@ export class ConfiguratorComponent {
     this.configureCatalogForm(firstProductKey);
     this.updateContactValidators('phone');
     this.completion.set(null);
+    this.projectDrawings.set([]);
+    this.activeDrawingId.set(null);
+    this.nextDrawingId = 1;
     this.submitError.set(null);
     this.selectedBalconySegmentIndex.set(0);
+    this.selectedMaterialGroup.set(null);
     this.step.set(1);
     this.focusStepHeading();
   }
@@ -1113,17 +1439,19 @@ export class ConfiguratorComponent {
   }
 
   private configureCatalogForm(type: string): void {
+    this.catalogSelectionError.set(false);
     this.catalogSubscriptions.forEach((subscription) => subscription.unsubscribe());
     this.catalogSubscriptions = [];
     const product =
       this.products().find((entry) => entry.key === type) ??
       this.catalog.fallbackProducts.find((entry) => entry.key === type);
-    const form = new FormRecord<FormControl<string | boolean>>({});
+    const form = new FormRecord<FormControl<CatalogFormValue>>({});
     if (!product) {
       this.configureProfileSeries();
       this.configureNotesField();
       this.catalogForm.set(form);
       this.catalogAnswers.set({});
+      this.activeVisualFieldKey.set('');
       this.joineryPanels.set([]);
       this.joineryPanelSelections.set([]);
       this.joineryHingeSelections.set([]);
@@ -1135,16 +1463,32 @@ export class ConfiguratorComponent {
       if (!isSafeCatalogKey(field.key) || field.key === 'notes' || field.key === 'profile_series') {
         continue;
       }
-      const initialValue = field.field_type === 'boolean' ? false : '';
+      const initialValue: CatalogFormValue =
+        field.field_type === 'boolean' ? false : field.field_type === 'number' ? null : '';
+      const derivedJoineryField =
+        (type === 'pvc_window' || type === 'pvc_door') &&
+        (field.key === 'opening_direction' || field.key === 'opening_mechanism');
       const validators =
-        field.required && field.field_type !== 'boolean' ? [Validators.required] : [];
+        field.required && field.field_type !== 'boolean' && !derivedJoineryField
+          ? [Validators.required]
+          : [];
       if (field.field_type === 'text') {
         validators.push(Validators.maxLength(500));
       }
+      if (field.field_type === 'number') {
+        if (typeof field.min_value === 'number') {
+          validators.push(Validators.min(field.min_value));
+        }
+        if (typeof field.max_value === 'number') {
+          validators.push(Validators.max(field.max_value));
+        }
+        if (typeof field.step === 'number' && field.step > 0) {
+          validators.push(numericStep(field.step, field.min_value ?? 0));
+        }
+      }
       form.addControl(
         field.key,
-        new FormControl<string | boolean>(initialValue, {
-          nonNullable: true,
+        new FormControl<CatalogFormValue>(initialValue, {
           validators,
         }),
       );
@@ -1152,6 +1496,7 @@ export class ConfiguratorComponent {
     this.catalogForm.set(form);
     const initialAnswers = this.sanitizeAnswers(product, form.getRawValue());
     this.catalogAnswers.set(initialAnswers);
+    this.activeVisualFieldKey.set(this.visualDetailFields()[0]?.key ?? '');
     this.syncJoineryPanels(type, initialAnswers);
     if (type === 'balcony_enclosure') {
       this.syncBalconySegments(
@@ -1169,6 +1514,9 @@ export class ConfiguratorComponent {
         }
         const previousShape = this.catalogAnswers()['enclosure_shape'];
         this.catalogAnswers.set(answers);
+        if (form.valid) {
+          this.catalogSelectionError.set(false);
+        }
         if (
           answers['layout'] !== previousAnswers['layout'] ||
           answers['opening_mechanism'] !== previousAnswers['opening_mechanism'] ||
@@ -1189,6 +1537,7 @@ export class ConfiguratorComponent {
   }
 
   private syncJoineryPanels(type: string, answers: CatalogAnswers): void {
+    this.joineryDimensionError.set(null);
     if (type !== 'pvc_window' && type !== 'pvc_door') {
       this.joineryPanels.set([]);
       this.joineryPanelSelections.set([]);
@@ -1235,11 +1584,100 @@ export class ConfiguratorComponent {
     );
   }
 
+  private joineryDimensionGroups(
+    startKey: 'x_percent' | 'y_percent',
+    sizeKey: 'width_percent' | 'height_percent',
+  ): readonly JoineryDimensionGroup[] {
+    const groups = new Map<string, JoineryDimensionGroup>();
+    for (const panel of this.joineryPanels()) {
+      const startPercent = panel[startKey];
+      const sizePercent = panel[sizeKey];
+      const key = `${startPercent.toFixed(4)}:${sizePercent.toFixed(4)}`;
+      groups.set(key, { startPercent, sizePercent });
+    }
+    return [...groups.values()].sort((left, right) => left.startPercent - right.startPercent);
+  }
+
+  private updateJoineryDimension(
+    axis: 'column' | 'row',
+    index: number,
+    rawValue: string,
+  ): void {
+    const groups = axis === 'column' ? this.joineryColumns() : this.joineryRows();
+    const total = axis === 'column' ? this.productValue().width : this.productValue().height;
+    const requested = Number(rawValue);
+    const dimensionName = axis === 'column' ? 'bölüm genişliği' : 'bölüm yüksekliği';
+    if (!total || groups.length < 2 || !groups[index] || !Number.isFinite(requested)) {
+      this.joineryDimensionError.set(`Geçerli bir ${dimensionName} girin.`);
+      return;
+    }
+
+    const minimum = Math.min(300, Math.max(100, Math.floor(total * 0.08)));
+    const maximum = total - minimum * (groups.length - 1);
+    if (requested < minimum || requested > maximum) {
+      this.joineryDimensionError.set(
+        `${dimensionName[0]!.toUpperCase()}${dimensionName.slice(1)} ${minimum}–${maximum} mm arasında olmalıdır.`,
+      );
+      return;
+    }
+
+    const currentSizes = groups.map((group) => (group.sizePercent * total) / 100);
+    const currentOtherTotal = currentSizes.reduce(
+      (sum, size, groupIndex) => sum + (groupIndex === index ? 0 : size),
+      0,
+    );
+    const remaining = total - requested;
+    const nextSizes = currentSizes.map((size, groupIndex) => {
+      if (groupIndex === index) {
+        return requested;
+      }
+      return currentOtherTotal > 0
+        ? (size / currentOtherTotal) * remaining
+        : remaining / (groups.length - 1);
+    });
+    if (nextSizes.some((size) => size < minimum - 0.01)) {
+      this.joineryDimensionError.set(
+        `Diğer bölümlerin her biri en az ${minimum} mm kalmalıdır.`,
+      );
+      return;
+    }
+
+    let cursor = 0;
+    const nextGroups = nextSizes.map((size) => {
+      const next = {
+        startPercent: (cursor / total) * 100,
+        sizePercent: (size / total) * 100,
+      };
+      cursor += size;
+      return next;
+    });
+    const startKey = axis === 'column' ? 'x_percent' : 'y_percent';
+    const sizeKey = axis === 'column' ? 'width_percent' : 'height_percent';
+    const panels = this.joineryPanels().map((panel) => {
+      const groupIndex = groups.findIndex(
+        (group) =>
+          Math.abs(group.startPercent - panel[startKey]) < 0.001 &&
+          Math.abs(group.sizePercent - panel[sizeKey]) < 0.001,
+      );
+      const nextGroup = nextGroups[groupIndex];
+      if (!nextGroup) {
+        return panel;
+      }
+      return {
+        ...panel,
+        [startKey]: nextGroup.startPercent,
+        [sizeKey]: nextGroup.sizePercent,
+      };
+    });
+    this.joineryPanels.set(panels);
+    this.joineryDimensionError.set(null);
+  }
+
   private sanitizeAnswers(
     product: CatalogProduct,
-    values: Readonly<Record<string, string | boolean>>,
+    values: Readonly<Record<string, CatalogFormValue>>,
   ): CatalogAnswers {
-    const result = Object.create(null) as Record<string, string | boolean>;
+    const result = Object.create(null) as Record<string, CatalogAnswerValue>;
     for (const field of product.fields.slice(0, 30)) {
       if (!isSafeCatalogKey(field.key) || field.key === 'notes' || field.key === 'profile_series') {
         continue;
@@ -1255,6 +1693,14 @@ export class ConfiguratorComponent {
         result[field.key] = value.slice(0, 120);
       } else if (field.field_type === 'text' && typeof value === 'string') {
         result[field.key] = value.trim().slice(0, 500);
+      } else if (
+        field.field_type === 'number' &&
+        typeof value === 'number' &&
+        Number.isFinite(value) &&
+        (typeof field.min_value !== 'number' || value >= field.min_value) &&
+        (typeof field.max_value !== 'number' || value <= field.max_value)
+      ) {
+        result[field.key] = value;
       }
     }
     return result;
@@ -1265,12 +1711,16 @@ export class ConfiguratorComponent {
     if (!isProductType(type)) {
       this.balconySegments.disable({ emitEvent: false });
       this.productForm.patchValue({
-        template: '',
+        // Generic catalog products still use this required internal control.
+        // Keep it valid without exposing a second, duplicate model selector.
+        template: type,
         width: null,
         height: null,
-        usagePrimary: '',
-        usageSecondary: '',
-        usageTertiary: '',
+        // These legacy internal controls are not rendered for catalog-defined
+        // products. Keep them valid; the visible answers live in catalogForm.
+        usagePrimary: 'advisor',
+        usageSecondary: 'advisor',
+        usageTertiary: 'advisor',
         color: 'white',
         profileSeries: '',
         notes: '',
@@ -1391,10 +1841,42 @@ export class ConfiguratorComponent {
         city: this.trimOrNull(contact.city),
         district: this.trimOrNull(contact.district),
       },
-      items: [this.currentItem()],
+      items: this.projectDrawings().map((drawing) => drawing.item),
       project_note: this.trimOrNull(contact.projectNote),
       privacy_consent: true,
     };
+  }
+
+  private commitCurrentDrawing(): boolean {
+    this.productForm.markAllAsTouched();
+    this.catalogForm().markAllAsTouched();
+    const joineryIncomplete = this.isJoinery() && !this.joinerySelectionsComplete();
+    const catalogIncomplete = this.catalogForm().invalid;
+    this.joinerySelectionError.set(joineryIncomplete);
+    this.catalogSelectionError.set(catalogIncomplete);
+    if (this.productForm.invalid || catalogIncomplete || joineryIncomplete) {
+      return false;
+    }
+
+    const currentProduct = this.currentProduct();
+    const existingId = this.activeDrawingId();
+    const drawing: ProjectDrawing = {
+      id: existingId ?? this.nextDrawingId++,
+      item: this.currentItem(),
+      productName: currentProduct.name,
+      materialGroup: currentProduct.material_group,
+    };
+    this.projectDrawings.update((drawings) => {
+      const index = drawings.findIndex((entry) => entry.id === drawing.id);
+      return index === -1
+        ? [...drawings, drawing]
+        : drawings.map((entry) => (entry.id === drawing.id ? drawing : entry));
+    });
+    this.activeDrawingId.set(drawing.id);
+    this.submitError.set(null);
+    this.joinerySelectionError.set(false);
+    this.catalogSelectionError.set(false);
+    return true;
   }
 
   private buildItem(value: ReturnType<typeof this.productForm.getRawValue>): PublicRequestItem {
@@ -1715,8 +2197,10 @@ export class ConfiguratorComponent {
     this.balconySegments.controls.forEach((control, index) => {
       if (index === 0) {
         control.controls.turnDegrees.setValue(0, { emitEvent: false });
-      } else if (KNOWN_BALCONY_SHAPES.has(shape)) {
-        control.controls.turnDegrees.setValue(null, { emitEvent: false });
+      } else if (shape === 'l_shape' || shape === 'u_shape') {
+        // L ve U planlarda yan cepheler ana cepheye dik bağlanır. Bu alanlar
+        // arayüzde kullanıcıya gösterilmediği için dönüşü sistem tanımlamalıdır.
+        control.controls.turnDegrees.setValue(90, { emitEvent: false });
       }
     });
     this.balconySegments.updateValueAndValidity({ emitEvent: true });

@@ -78,6 +78,24 @@ describe('installation scene geometry', () => {
     expect(door.anchorBottomPercent).toBeLessThan(window.anchorBottomPercent);
   });
 
+  it('gives wide special systems a larger ground-level drawing area', () => {
+    const geometry = calculateInstallationSceneGeometry({
+      productType: 'hebeschiebe_system',
+      measurementVariant: 'opening',
+      widthMm: 6000,
+      heightMm: 2000,
+      measurementReady: true,
+    });
+    const renderedPixelRatio = (geometry.openingWidthPercent * 1.6) / geometry.openingHeightPercent;
+
+    expect(geometry.kind).toBe('wide-system');
+    expect(geometry.openingWidthPercent).toBe(90);
+    expect(geometry.anchorBottomPercent).toBe(8);
+    expect(renderedPixelRatio).toBeCloseTo(3, 2);
+    expect(geometry.standardWidthMm).toBe(4000);
+    expect(geometry.standardHeightMm).toBe(2400);
+  });
+
   it('uses the flyscreen usage and custom product measurement variant for the scene', () => {
     expect(resolveInstallationSceneKind('flyscreen', 'opening', 'door')).toBe('door');
     expect(resolveInstallationSceneKind('flyscreen', 'opening', 'balcony')).toBe('balcony');

@@ -16,6 +16,7 @@ from app.models import (
     CatalogOption,
     CatalogOptionProfileSpec,
     CatalogProduct,
+    CatalogProductMaterial,
 )
 from app.security import hash_password
 
@@ -141,9 +142,11 @@ def _custom_product_payload(
     key: str,
     name: str,
     active: bool = False,
+    material_group: str = "pvc",
 ) -> dict[str, Any]:
     return {
         "key": key,
+        "material_group": material_group,
         "name": name,
         "description": f"{name} için yönlendirmeli ölçü talebi",
         "mark": name[:2].upper(),
@@ -264,7 +267,7 @@ def _resolve_refs(node: Any, document: dict[str, Any], seen: set[str] | None = N
     }
 
 
-def test_seed_is_idempotent_and_contains_six_products_and_guides(
+def test_seed_is_idempotent_and_contains_all_products_and_guides(
     catalog_context,
 ) -> None:
     _, engine = catalog_context
@@ -295,14 +298,82 @@ def test_seed_is_idempotent_and_contains_six_products_and_guides(
     after = counts()
 
     assert before == after
-    assert before[0] == 6
+    assert before[0] == 10
     with Session(engine) as session:
         guided_count = session.exec(
             select(func.count())
             .select_from(CatalogField)
             .where(CatalogField.key.in_(["usage_primary", "usage_secondary", "usage_tertiary"]))
         ).one()
-    assert guided_count == 18
+        material_count = session.exec(
+            select(func.count()).select_from(CatalogProductMaterial)
+        ).one()
+    assert guided_count == 30
+    assert material_count == 10
+
+
+def test_seed_reconciles_new_pivot_fields_without_overwriting_admin_edits(
+    catalog_context,
+) -> None:
+    _, engine = catalog_context
+    new_field_keys = {
+        "pivot_opening_direction",
+        "pivot_vertical_mullion_count",
+        "pivot_horizontal_mullion_count",
+    }
+
+    # Reproduce a database created before the pivot direction and decorative
+    # glazing-bar fields were introduced. An unrelated admin edit must survive
+    # the reconciliation unchanged.
+    with Session(engine) as session:
+        pivot_fields = session.exec(
+            select(CatalogField).where(CatalogField.product_key == "pivot_system")
+        ).all()
+        lock_field = next(field for field in pivot_fields if field.key == "lock_type")
+        lock_field.label = "Yöneticiye özel kilit etiketi"
+        session.add(lock_field)
+
+        fields_to_remove = [
+            field for field in pivot_fields if field.key in new_field_keys
+        ]
+        field_ids = [field.id for field in fields_to_remove if field.id is not None]
+        if field_ids:
+            for option in session.exec(
+                select(CatalogOption).where(CatalogOption.field_id.in_(field_ids))
+            ).all():
+                session.delete(option)
+        for field in fields_to_remove:
+            session.delete(field)
+        session.commit()
+
+    seed_catalog(engine)
+    seed_catalog(engine)
+
+    with Session(engine) as session:
+        reconciled_fields = session.exec(
+            select(CatalogField).where(CatalogField.product_key == "pivot_system")
+        ).all()
+        fields_by_key = {field.key: field for field in reconciled_fields}
+
+        assert new_field_keys <= fields_by_key.keys()
+        assert fields_by_key["lock_type"].label == "Yöneticiye özel kilit etiketi"
+        assert fields_by_key["pivot_opening_direction"].required is True
+        assert fields_by_key["pivot_vertical_mullion_count"].required is False
+        assert fields_by_key["pivot_horizontal_mullion_count"].required is False
+
+        opening_field = fields_by_key["pivot_opening_direction"]
+        opening_options = session.exec(
+            select(CatalogOption)
+            .where(CatalogOption.field_id == opening_field.id)
+            .order_by(CatalogOption.sort_order, CatalogOption.id)
+        ).all()
+        assert [option.value for option in opening_options] == ["side", "up"]
+
+        field_counts = {
+            key: sum(field.key == key for field in reconciled_fields)
+            for key in new_field_keys
+        }
+        assert field_counts == {key: 1 for key in new_field_keys}
 
 
 @pytest.mark.parametrize("product_type", ["pvc_window", "pvc_door"])
@@ -454,10 +525,15 @@ def test_public_catalog_has_exact_active_only_noncommercial_contract(
         "facade_cladding",
         "guillotine_glass",
         "balcony_enclosure",
+        "volkswagen_sliding_door",
+        "hebeschiebe_system",
+        "pivot_system",
+        "folding_system",
     }
     for product in products:
         assert set(product) == {
             "key",
+            "material_group",
             "name",
             "description",
             "mark",
@@ -480,9 +556,13 @@ def test_public_catalog_has_exact_active_only_noncommercial_contract(
                 "id",
                 "key",
                 "label",
-                "help_text",
-                "field_type",
-                "required",
+                    "help_text",
+                    "field_type",
+                    "unit",
+                    "min_value",
+                    "max_value",
+                    "step",
+                    "required",
                 "sort_order",
                 "options",
             }
@@ -493,10 +573,34 @@ def test_public_catalog_has_exact_active_only_noncommercial_contract(
                     "label",
                     "description",
                     "features",
+                    "visual_icon_url",
                     "section_image_urls",
                     "profile_spec",
                     "sort_order",
                 }
+
+    groups = {product["key"]: product["material_group"] for product in products}
+    assert groups["pvc_window"] == "pvc"
+
+    pivot = next(product for product in products if product["key"] == "pivot_system")
+    opening_direction = next(
+        field for field in pivot["fields"] if field["key"] == "pivot_opening_direction"
+    )
+    assert [option["value"] for option in opening_direction["options"]] == ["side", "up"]
+    vertical_mullions = next(
+        field for field in pivot["fields"] if field["key"] == "pivot_vertical_mullion_count"
+    )
+    horizontal_mullions = next(
+        field for field in pivot["fields"] if field["key"] == "pivot_horizontal_mullion_count"
+    )
+    assert vertical_mullions["required"] is False
+    assert horizontal_mullions["required"] is False
+    assert [option["value"] for option in vertical_mullions["options"]] == ["0", "1", "2", "3"]
+    assert groups["pvc_door"] == "pvc"
+    assert groups["guillotine_glass"] == "aluminium"
+    assert groups["balcony_enclosure"] == "aluminium"
+    assert groups["volkswagen_sliding_door"] == "pvc"
+    assert groups["hebeschiebe_system"] == "aluminium"
 
     serialized = str(response.json()).lower()
     for forbidden in (
@@ -556,6 +660,7 @@ def test_option_add_patch_and_soft_deactivate_round_trip(catalog_context) -> Non
             "label": "Sahil bölgesi",
             "description": "",
             "features": [],
+            "visual_icon_url": None,
             "section_image_urls": [],
             "profile_spec": None,
             "sort_order": 10,
@@ -615,6 +720,7 @@ def test_option_presentation_details_round_trip_and_reject_unsafe_content(
             "label": "Prestij 76",
             "description": "Yalıtım ve dayanıklılık odaklı profil serisi.",
             "features": ["76 mm profil derinliği", "Çok odacıklı gövde"],
+            "visual_icon_url": "https://cdn.example.com/icons/prestige-76.svg",
             "section_image_urls": [
                 "https://cdn.example.com/sections/prestige-76.webp"
             ],
@@ -635,6 +741,9 @@ def test_option_presentation_details_round_trip_and_reject_unsafe_content(
         "series_detail_demo",
     )["options"][0]
     assert public_option["description"].startswith("Yalıtım")
+    assert public_option["visual_icon_url"] == (
+        "https://cdn.example.com/icons/prestige-76.svg"
+    )
     assert public_option["section_image_urls"] == [
         "https://cdn.example.com/sections/prestige-76.webp"
     ]
@@ -645,11 +754,13 @@ def test_option_presentation_details_round_trip_and_reject_unsafe_content(
         json={
             "description": "Geniş cam uygulamaları için dengeli seri.",
             "features": ["76 mm profil derinliği"],
+            "visual_icon_url": None,
             "section_image_urls": [],
         },
     )
     assert patched.status_code == 200
     assert patched.json()["section_image_urls"] == []
+    assert patched.json()["visual_icon_url"] is None
     assert _find_public_field(
         client,
         "pvc_window",
@@ -666,8 +777,14 @@ def test_option_presentation_details_round_trip_and_reject_unsafe_content(
         headers=headers,
         json={"section_image_urls": ["javascript:alert(1)"]},
     )
+    unsafe_icon = client.patch(
+        f"/api/v1/admin/catalog/options/{option['id']}",
+        headers=headers,
+        json={"visual_icon_url": "data:image/svg+xml,<svg/>"},
+    )
     assert unsafe_text.status_code == 422
     assert unsafe_url.status_code == 422
+    assert unsafe_icon.status_code == 422
 
 
 def test_option_profile_spec_create_update_public_round_trip_and_delete(
@@ -1070,10 +1187,15 @@ def test_admin_created_product_draft_publish_submit_and_history_round_trip(
     created = client.post(
         "/api/v1/admin/catalog/products",
         headers=headers,
-        json=_custom_product_payload(key="pergola", name="Pergola"),
+        json=_custom_product_payload(
+            key="pergola",
+            name="Pergola",
+            material_group="aluminium",
+        ),
     )
     assert created.status_code == 201
     assert created.json()["active"] is False
+    assert created.json()["material_group"] == "aluminium"
     assert "pergola" not in {
         product["key"] for product in client.get("/api/v1/catalog").json()["products"]
     }
@@ -1134,6 +1256,7 @@ def test_admin_created_product_draft_publish_submit_and_history_round_trip(
         if item["key"] == "pergola"
     )
     assert public_product["name"] == "Pergola"
+    assert public_product["material_group"] == "aluminium"
     assert public_product["fields"][0]["options"][0]["value"] == "polycarbonate"
 
     accepted = client.post(
@@ -1267,3 +1390,71 @@ def test_custom_product_security_and_strict_payload_boundaries(catalog_context) 
         "/api/v1/requests",
         json=generic_with_specialized_field,
     ).status_code == 422
+
+
+def test_numeric_catalog_field_round_trip_and_submission_bounds(catalog_context) -> None:
+    client, _ = catalog_context
+    headers = _login(client)
+
+    public_window = next(
+        product
+        for product in client.get("/api/v1/catalog").json()["products"]
+        if product["key"] == "pvc_window"
+    )
+    frame_field = next(
+        field
+        for field in public_window["fields"]
+        if field["key"] == "frame_profile_width_mm"
+    )
+    assert frame_field == {
+        **frame_field,
+        "field_type": "number",
+        "unit": "mm",
+        "min_value": 30.0,
+        "max_value": 200.0,
+        "step": 1.0,
+    }
+
+    accepted = _window_payload(catalog_answers={"frame_profile_width_mm": 76})
+    assert client.post("/api/v1/requests", json=accepted).status_code == 202
+
+    for invalid_value in (29, 201, 76.5, "76", True):
+        rejected = _window_payload(
+            catalog_answers={"frame_profile_width_mm": invalid_value},
+        )
+        assert client.post("/api/v1/requests", json=rejected).status_code == 422
+
+    created = client.post(
+        "/api/v1/admin/catalog/products/pvc_window/fields",
+        headers=headers,
+        json={
+            "key": "custom_hardware_offset_mm",
+            "label": "Özel donanım mesafesi",
+            "help_text": "Teknik ölçü",
+            "field_type": "number",
+            "unit": "mm",
+            "min_value": 10,
+            "max_value": 250,
+            "step": 5,
+            "required": False,
+            "active": True,
+            "sort_order": 58,
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["unit"] == "mm"
+
+    invalid_definition = client.post(
+        "/api/v1/admin/catalog/products/pvc_window/fields",
+        headers=headers,
+        json={
+            "key": "invalid_numeric_range",
+            "label": "Geçersiz ölçü",
+            "field_type": "number",
+            "unit": "mm",
+            "min_value": 300,
+            "max_value": 100,
+            "step": 1,
+        },
+    )
+    assert invalid_definition.status_code == 422

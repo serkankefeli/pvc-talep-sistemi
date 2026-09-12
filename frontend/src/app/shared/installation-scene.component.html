@@ -4,7 +4,7 @@
     role="img"
     [attr.aria-label]="ariaLabel()"
     [class.scene-window]="geometry().kind === 'window'"
-    [class.scene-door]="geometry().kind === 'door'"
+    [class.scene-door]="geometry().kind === 'door' || geometry().kind === 'wide-system'"
     [class.scene-balcony]="geometry().kind === 'balcony'"
     [class.scene-facade]="geometry().kind === 'facade'"
     [style.--opening-width]="geometry().openingWidthPercent + '%'"
@@ -32,6 +32,7 @@
           [class.facade-unit]="isFacade()"
           [class.horizontal-panels]="isHorizontalPanels()"
           [class.balcony-profile-unit]="balconyGeometry()"
+          [class.special-system-unit]="specialModel()"
           [style.--panel-count]="panelIndexes().length"
         >
           @if (joineryGeometry(); as joinery) {
@@ -62,6 +63,15 @@
                     [attr.y]="panel.glass.y"
                     [attr.width]="panel.glass.width"
                     [attr.height]="panel.glass.height"
+                  />
+                  <rect
+                    class="joinery-glazing-bead"
+                    [attr.x]="panel.glazingBead.x"
+                    [attr.y]="panel.glazingBead.y"
+                    [attr.width]="panel.glazingBead.width"
+                    [attr.height]="panel.glazingBead.height"
+                    [attr.stroke-width]="panel.glazingBead.strokeWidth"
+                    [attr.stroke]="frameFill()"
                   />
                 </g>
               }
@@ -100,6 +110,21 @@
                     [attr.y1]="handle.y1"
                     [attr.x2]="handle.x2"
                     [attr.y2]="handle.y2"
+                  />
+                }
+                @for (hardware of panel.hardware; track $index) {
+                  <rect
+                    class="joinery-hardware"
+                    [class.joinery-hinge]="hardware.kind === 'hinge'"
+                    [class.joinery-lock]="hardware.kind === 'lock'"
+                    [class.joinery-lock-point]="hardware.kind === 'lock-point'"
+                    [attr.data-hardware-kind]="hardware.kind"
+                    [attr.data-hardware-variant]="hardware.variant"
+                    [attr.x]="hardware.x"
+                    [attr.y]="hardware.y"
+                    [attr.width]="hardware.width"
+                    [attr.height]="hardware.height"
+                    rx="0.8"
                   />
                 }
               }
@@ -245,11 +270,34 @@
               }
             </div>
           } @else {
-            <div class="pane-grid">
-              @for (panel of panelIndexes(); track panel) {
-                <span class="pane"></span>
-              }
-            </div>
+            @if (specialModel()) {
+              <app-special-system-model
+                class="installed-special-model"
+                [model]="specialModel()"
+                [label]="productLabel() + ': ' + (specialModelName() || 'seçilen model')"
+                [profileColor]="frameFill()"
+                [stackDirection]="specialStackDirection()"
+                [pivotOpeningDirection]="pivotOpeningDirection()"
+                [infillType]="pivotInfillType()"
+                [verticalMullionCount]="pivotVerticalMullionCount()"
+                [horizontalMullionCount]="pivotHorizontalMullionCount()"
+                [widthMm]="item().width_mm"
+                [heightMm]="item().height_mm"
+                [frameProfileWidthMm]="frameProfileWidthMm()"
+                [mullionProfileWidthMm]="mullionProfileWidthMm()"
+                [glazingBarWidthMm]="glazingBarWidthMm()"
+                [pivotAxisOffsetMm]="pivotAxisOffsetMm()"
+                [hingeType]="hingeType()"
+                [lockType]="lockType()"
+                [lockHeightMm]="lockHeightMm()"
+              />
+            } @else {
+              <div class="pane-grid">
+                @for (panel of panelIndexes(); track panel) {
+                  <span class="pane"></span>
+                }
+              </div>
+            }
           }
         </div>
         <span class="dimension-tag dimension-width">{{ item().width_mm }} mm</span>
@@ -275,6 +323,16 @@
       </small>
       @if (joinerySummary()) {
         <small class="joinery-summary">{{ joinerySummary() }}</small>
+      }
+      @if (specialModelSummary()) {
+        <small class="special-model-summary" data-testid="special-model-summary">
+          {{ specialModelSummary() }}
+        </small>
+      }
+      @if (specialModelWarning()) {
+        <small class="special-model-warning" data-testid="special-model-warning">
+          {{ specialModelWarning() }}
+        </small>
       }
       @if (balconyGeometry(); as balcony) {
         <small class="balcony-equation" data-testid="balcony-width-equation">

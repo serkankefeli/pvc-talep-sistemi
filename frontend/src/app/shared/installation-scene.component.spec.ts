@@ -99,6 +99,119 @@ describe('InstallationSceneComponent', () => {
     );
   });
 
+  it.each([
+    ['volkswagen_sliding_door', 'vw_four_center', 4, 'Dört kanat Volkswagen'],
+    ['hebeschiebe_system', 'hs_six', 6, '6 bölüm Hebeschiebe'],
+    ['pivot_system', 'pivot_fixed_fanlight', 2, 'Sabit yan + pivot + üst ışıklık'],
+    ['folding_system', 'fold_seven', 7, '7 yaprak katlanır'],
+  ])(
+    'renders the selected %s model in the live installation scene',
+    (productType, model, panelCount, modelName) => {
+      const item: PublicRequestItem = {
+        product_type: productType,
+        width_mm: 4200,
+        height_mm: 2400,
+        quantity: 1,
+        color: 'anthracite',
+        profile_series: null,
+        notes: null,
+        drawing_version: '1',
+        catalog_answers: {
+          system_model: model,
+          ...(productType === 'pivot_system'
+            ? {
+                pivot_opening_direction: 'up',
+                infill_type: 'mixed',
+                pivot_vertical_mullion_count: '2',
+                pivot_horizontal_mullion_count: '1',
+              }
+            : {}),
+        },
+      };
+      const fixture = createFixture(item, true);
+      fixture.componentRef.setInput('specialModelName', modelName);
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(element.querySelector(`.installed-special-model [data-model="${model}"]`)).toBeTruthy();
+      expect(element.querySelectorAll('.installed-special-model .model-panel')).toHaveLength(panelCount);
+      expect(element.querySelector('[data-testid="special-model-summary"]')?.textContent).toContain(
+        modelName,
+      );
+      if (productType === 'pivot_system') {
+        expect(
+          element
+            .querySelector('.installed-special-model .system-model')
+            ?.getAttribute('data-pivot-opening'),
+        ).toBe('up');
+        expect(element.querySelector('[data-testid="special-model-summary"]')?.textContent).toContain(
+          'Yukarı açılır',
+        );
+        expect(element.querySelector('[data-testid="special-model-summary"]')?.textContent).toContain(
+          '2 dikey cam çıtası + 1 yatay cam çıtası',
+        );
+        expect(element.querySelectorAll('.installed-special-model .pivot-glazing-bar.vertical')).toHaveLength(2);
+        expect(element.querySelectorAll('.installed-special-model .pivot-glazing-bar.horizontal')).toHaveLength(1);
+        expect(
+          element.querySelector('.installed-special-model .system-model')?.getAttribute('data-infill'),
+        ).toBe('mixed');
+      }
+    },
+  );
+
+  it('warns when a pivot section is unusually wide', () => {
+    const item: PublicRequestItem = {
+      product_type: 'pivot_system',
+      width_mm: 6000,
+      height_mm: 2000,
+      quantity: 1,
+      color: 'anthracite',
+      profile_series: null,
+      notes: null,
+      drawing_version: '1',
+      catalog_answers: { system_model: 'pivot_double' },
+    };
+    const fixture = createFixture(item, true);
+    fixture.componentRef.setInput('specialModelName', 'Çift pivot kanat');
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="special-model-warning"]')
+        ?.textContent,
+    ).toContain('3.000 mm');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="pivot-drawing"]')).toBeTruthy();
+  });
+
+  it('renders an oversized single pivot as a closed technical elevation without width hacks', () => {
+    const item: PublicRequestItem = {
+      product_type: 'pivot_system',
+      width_mm: 7000,
+      height_mm: 2400,
+      quantity: 1,
+      color: 'anthracite',
+      profile_series: null,
+      notes: null,
+      drawing_version: '1',
+      catalog_answers: { system_model: 'pivot_single', infill_type: 'panel' },
+    };
+    const fixture = createFixture(item, true);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.installed-unit.oversized-single-pivot')).toBeNull();
+    expect(element.querySelector('[data-testid="pivot-drawing"]')).toBeTruthy();
+    expect(
+      element.querySelector('.installed-special-model .system-model')?.getAttribute('data-pivot-opening'),
+    ).toBe('none');
+    expect(element.querySelector('.pivot-direction-arrow')).toBeNull();
+    expect(element.querySelector('[data-testid="special-model-summary"]')?.textContent).not.toContain(
+      'Yana açılır',
+    );
+    expect(
+      element.querySelector('.installed-special-model .system-model')?.getAttribute('data-infill'),
+    ).toBe('panel');
+  });
+
   it('uses the detailed joinery drawing for a combined window and door', () => {
     const item: WindowItem = {
       ...WINDOW_ITEM,

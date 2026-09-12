@@ -1,10 +1,11 @@
-import { DatePipe, KeyValuePipe } from '@angular/common';
+import { DOCUMENT, DatePipe, KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   AdminRequestDetail,
+  AdminRequestRevision,
   BalconyEnclosureItem,
   BalconySegment,
   productTypeLabel,
@@ -26,6 +27,7 @@ export class AdminRequestDetailComponent {
   private readonly api = inject(RequestApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
+  private readonly document = inject(DOCUMENT);
   private readonly requestId = Number(this.route.snapshot.paramMap.get('id'));
 
   readonly statusLabels = STATUS_LABELS;
@@ -39,6 +41,9 @@ export class AdminRequestDetailComponent {
   readonly emailMessage = signal<string | null>(null);
   readonly favoriteSaving = signal(false);
   readonly favoriteMessage = signal<string | null>(null);
+  readonly revisions = signal<readonly AdminRequestRevision[]>([]);
+  readonly revisionSaving = signal(false);
+  readonly revisionMessage = signal<string | null>(null);
 
   readonly updateForm = this.fb.group({
     status: this.fb.nonNullable.control<RequestStatus>('new'),
@@ -56,12 +61,21 @@ export class AdminRequestDetailComponent {
     confirmed: this.fb.nonNullable.control(false, Validators.requiredTrue),
   });
 
+  readonly revisionForm = this.fb.group({
+    note: this.fb.nonNullable.control('', [Validators.required, Validators.maxLength(3000)]),
+  });
+
   catalogAnswerLabel(key: string): string {
     return key.replaceAll('_', ' ');
   }
 
-  catalogAnswerValue(value: string | boolean): string {
-    return typeof value === 'boolean' ? (value ? 'Evet' : 'Hayır') : value;
+  catalogAnswerValue(value: string | boolean | number): string {
+    if (typeof value === 'boolean') {
+      return value ? 'Evet' : 'Hayır';
+    }
+    return typeof value === 'number'
+      ? new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 3 }).format(value)
+      : value;
   }
 
   balconySegments(item: PublicRequestItem): readonly BalconySegment[] {
@@ -111,6 +125,32 @@ export class AdminRequestDetailComponent {
       error: () => {
         this.loadError.set('Talep bilgileri yüklenemedi.');
         this.loading.set(false);
+      },
+    });
+    this.loadRevisions();
+  }
+
+  printPreProject(): void {
+    this.document.defaultView?.print();
+  }
+
+  createRevision(): void {
+    this.revisionForm.markAllAsTouched();
+    if (this.revisionForm.invalid || this.revisionSaving()) {
+      return;
+    }
+    this.revisionSaving.set(true);
+    this.revisionMessage.set(null);
+    this.api.createRevision(this.requestId, this.revisionForm.controls.note.value.trim()).subscribe({
+      next: (revision) => {
+        this.revisions.update((revisions) => [revision, ...revisions]);
+        this.revisionForm.reset();
+        this.revisionMessage.set(`Revizyon ${revision.revision_number} oluşturuldu.`);
+        this.revisionSaving.set(false);
+      },
+      error: () => {
+        this.revisionMessage.set('Revizyon oluşturulamadı.');
+        this.revisionSaving.set(false);
       },
     });
   }
@@ -206,6 +246,13 @@ export class AdminRequestDetailComponent {
       status: detail.status,
       internalNotes: detail.internal_notes ?? '',
       quotedAmount: detail.quoted_amount === null ? null : Number(detail.quoted_amount),
+    });
+  }
+
+  private loadRevisions(): void {
+    this.api.listRevisions(this.requestId).subscribe({
+      next: (revisions) => this.revisions.set(revisions),
+      error: () => this.revisions.set([]),
     });
   }
 }

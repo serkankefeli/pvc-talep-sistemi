@@ -24,13 +24,21 @@ from sqlmodel import Session, select
 from .config import Settings
 from .catalog import validate_catalog_submission
 from .mailer import AdminNotification, MailService
-from .models import AdminRequestFavorite, QuoteRequest, QuoteRequestItem, utc_now
+from .models import (
+    AdminRequestFavorite,
+    QuoteRequest,
+    QuoteRequestItem,
+    QuoteRequestRevision,
+    utc_now,
+)
 from .rate_limit import SlidingWindowRateLimiter
 from .schemas import (
     AdminLoginRequest,
     AdminRequestDetail,
     AdminRequestFavoriteState,
     AdminRequestList,
+    AdminRequestRevision,
+    AdminRequestRevisionCreate,
     AdminRequestSummary,
     AdminRequestUpdate,
     AdminTokenResponse,
@@ -654,5 +662,79 @@ def build_router(
         session.add(model)
         session.commit()
         return CustomerEmailSent(sent_at=sent_at)
+
+    @router.get(
+        "/admin/requests/{request_id}/revisions",
+        response_model=list[AdminRequestRevision],
+        tags=["admin"],
+    )
+    def list_request_revisions(
+        request_id: int,
+        _: Annotated[AdminPrincipal, Depends(require_admin)],
+        session: Session = Depends(get_session),
+    ) -> list[AdminRequestRevision]:
+        if session.get(QuoteRequest, request_id) is None:
+            raise HTTPException(status_code=404, detail="Request not found.")
+        revisions = session.exec(
+            select(QuoteRequestRevision)
+            .where(QuoteRequestRevision.quote_request_id == request_id)
+            .order_by(QuoteRequestRevision.revision_number.desc())
+        ).all()
+        return [
+            AdminRequestRevision(
+                id=revision.id,
+                request_id=revision.quote_request_id,
+                revision_number=revision.revision_number,
+                note=revision.note,
+                items=revision.items_json,
+                created_by=revision.created_by,
+                created_at=revision.created_at,
+            )
+            for revision in revisions
+        ]
+
+    @router.post(
+        "/admin/requests/{request_id}/revisions",
+        response_model=AdminRequestRevision,
+        status_code=status.HTTP_201_CREATED,
+        tags=["admin"],
+    )
+    def create_request_revision(
+        request_id: int,
+        payload: AdminRequestRevisionCreate,
+        principal: Annotated[AdminPrincipal, Depends(require_admin)],
+        session: Session = Depends(get_session),
+    ) -> AdminRequestRevision:
+        request_model = session.exec(
+            select(QuoteRequest)
+            .options(selectinload(QuoteRequest.items))
+            .where(QuoteRequest.id == request_id)
+        ).one_or_none()
+        if request_model is None:
+            raise HTTPException(status_code=404, detail="Request not found.")
+        latest = session.exec(
+            select(func.max(QuoteRequestRevision.revision_number)).where(
+                QuoteRequestRevision.quote_request_id == request_id
+            )
+        ).one()
+        revision = QuoteRequestRevision(
+            quote_request_id=request_id,
+            revision_number=int(latest or 0) + 1,
+            note=payload.note.strip(),
+            items_json=[item.configuration_json for item in request_model.items],
+            created_by=principal.username,
+        )
+        session.add(revision)
+        session.commit()
+        session.refresh(revision)
+        return AdminRequestRevision(
+            id=revision.id,
+            request_id=revision.quote_request_id,
+            revision_number=revision.revision_number,
+            note=revision.note,
+            items=revision.items_json,
+            created_by=revision.created_by,
+            created_at=revision.created_at,
+        )
 
     return router

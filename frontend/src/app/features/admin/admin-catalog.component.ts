@@ -16,6 +16,7 @@ import {
   AdminCatalogProduct,
   CatalogFieldType,
   CatalogFieldWrite,
+  CatalogMaterialGroup,
   CatalogOptionWrite,
   CatalogProductWrite,
   containsRestrictedPublicTerm,
@@ -186,6 +187,7 @@ export class AdminCatalogComponent {
       safePublicText,
     ]),
     active: this.fb.control(true),
+    materialGroup: this.fb.control<CatalogMaterialGroup>('pvc'),
     sortOrder: this.fb.control(1, [Validators.required, Validators.min(0)]),
     measurementVariant: this.fb.control<'opening' | 'facade' | 'balcony'>('opening'),
     widthInstruction: this.fb.control('', [
@@ -220,6 +222,10 @@ export class AdminCatalogComponent {
     label: this.fb.control('', [Validators.required, Validators.maxLength(160), safePublicText]),
     helpText: this.fb.control('', [Validators.maxLength(300), safePublicText]),
     fieldType: this.fb.control<CatalogFieldType>('select'),
+    unit: this.fb.control('', [Validators.maxLength(16), safePublicText]),
+    minValue: this.fb.control(0, [Validators.required, Validators.min(-1_000_000_000)]),
+    maxValue: this.fb.control(10_000, [Validators.required, Validators.max(1_000_000_000)]),
+    step: this.fb.control(1, [Validators.required, Validators.min(0.000001)]),
     required: this.fb.control(true),
     active: this.fb.control(true),
     sortOrder: this.fb.control(1, [Validators.required, Validators.min(0)]),
@@ -239,6 +245,7 @@ export class AdminCatalogComponent {
       safePublicText,
       safeFeatureLines,
     ]),
+    visualIconUrl: this.fb.control('', [Validators.maxLength(2048), safeSectionImageUrls]),
     sectionImageUrlsText: this.fb.control('', [Validators.maxLength(8195), safeSectionImageUrls]),
     profileSpecEnabled: this.fb.control(false),
     profileSpec: this.fb.group(
@@ -328,6 +335,7 @@ export class AdminCatalogComponent {
       name: product.name,
       description: product.description,
       active: product.active,
+      materialGroup: product.material_group,
       sortOrder: product.sort_order,
       measurementVariant: product.measurement_variant,
       widthInstruction: product.width_instruction,
@@ -352,6 +360,7 @@ export class AdminCatalogComponent {
       name: '',
       description: '',
       active: false,
+      materialGroup: 'pvc',
       sortOrder: this.products().length + 1,
       measurementVariant: 'opening',
       widthInstruction: 'Açıklığın içten içe genişliğini ölçün.',
@@ -373,6 +382,7 @@ export class AdminCatalogComponent {
       this.selectedProduct()?.mark ?? value.key.replaceAll('_', '').slice(0, 3).toUpperCase();
     const payload: CatalogProductWrite = {
       key: value.key,
+      material_group: value.materialGroup,
       name: value.name.trim(),
       description: value.description.trim(),
       mark: internalMark,
@@ -389,6 +399,7 @@ export class AdminCatalogComponent {
       : this.api.updateProduct(value.key, {
           name: payload.name,
           description: payload.description,
+          material_group: payload.material_group,
           active: payload.active,
           sort_order: payload.sort_order,
           measurement_variant: payload.measurement_variant,
@@ -443,6 +454,10 @@ export class AdminCatalogComponent {
       label: field.label,
       helpText: field.help_text,
       fieldType: field.field_type,
+      unit: field.unit ?? '',
+      minValue: field.min_value ?? 0,
+      maxValue: field.max_value ?? 10_000,
+      step: field.step ?? 1,
       required: field.required,
       active: field.active,
       sortOrder: field.sort_order,
@@ -462,6 +477,10 @@ export class AdminCatalogComponent {
       label: '',
       helpText: '',
       fieldType: 'select',
+      unit: '',
+      minValue: 0,
+      maxValue: 10_000,
+      step: 1,
       required: true,
       active: this.selectedProduct()?.active !== true,
       sortOrder: this.fields().length + 1,
@@ -474,13 +493,22 @@ export class AdminCatalogComponent {
     if (!productKey || this.fieldForm.invalid || this.busy()) {
       return;
     }
-    this.beginAction();
     const value = this.fieldForm.getRawValue();
+    if (value.fieldType === 'number' && value.minValue > value.maxValue) {
+      this.error.set('Sayısal alanın minimum değeri maksimum değerinden büyük olamaz.');
+      return;
+    }
+    this.beginAction();
+    const numericField = value.fieldType === 'number';
     const payload: CatalogFieldWrite = {
       key: value.key.trim(),
       label: value.label.trim(),
       help_text: value.helpText.trim(),
       field_type: value.fieldType,
+      unit: numericField ? value.unit.trim() : '',
+      min_value: numericField ? value.minValue : null,
+      max_value: numericField ? value.maxValue : null,
+      step: numericField ? value.step : null,
       required: value.required,
       active: value.active,
       sort_order: value.sortOrder,
@@ -491,6 +519,14 @@ export class AdminCatalogComponent {
           label: payload.label,
           help_text: payload.help_text,
           field_type: payload.field_type,
+          ...(numericField
+            ? {
+                unit: payload.unit,
+                min_value: payload.min_value,
+                max_value: payload.max_value,
+                step: payload.step,
+              }
+            : {}),
           required: payload.required,
           active: payload.active,
           sort_order: payload.sort_order,
@@ -521,6 +557,22 @@ export class AdminCatalogComponent {
     });
   }
 
+  removeField(field: AdminCatalogField): void {
+    const productKey = this.selectedProductKey();
+    if (!productKey || this.busy() || !field.active) {
+      return;
+    }
+    this.beginAction();
+    this.api.deleteField(field.id).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.message.set('Alan müşteri formundan kaldırıldı. İsterseniz tekrar ekleyebilirsiniz.');
+        this.loadFields(productKey);
+      },
+      error: (error: unknown) => this.failAction(error),
+    });
+  }
+
   loadOptions(fieldId: number, preferredId?: number): void {
     this.api.loadOptions(fieldId).subscribe({
       next: (options) => {
@@ -537,6 +589,7 @@ export class AdminCatalogComponent {
             label: '',
             description: '',
             featuresText: '',
+            visualIconUrl: '',
             sectionImageUrlsText: '',
             profileSpecEnabled: profileSpecRequired,
             profileSpec: DEFAULT_BALCONY_PROFILE_SPEC,
@@ -561,6 +614,7 @@ export class AdminCatalogComponent {
         label: option.label,
         description: option.description ?? '',
         featuresText: (option.features ?? []).join('\n'),
+        visualIconUrl: option.visual_icon_url ?? '',
         sectionImageUrlsText: (option.section_image_urls ?? []).join('\n'),
         profileSpecEnabled,
         profileSpec: option.profile_spec ?? DEFAULT_BALCONY_PROFILE_SPEC,
@@ -583,6 +637,7 @@ export class AdminCatalogComponent {
       label: '',
       description: '',
       featuresText: '',
+      visualIconUrl: '',
       sectionImageUrlsText: '',
       profileSpecEnabled: profileSpecRequired,
       profileSpec: DEFAULT_BALCONY_PROFILE_SPEC,
@@ -605,6 +660,7 @@ export class AdminCatalogComponent {
       label: value.label.trim(),
       description: value.description.trim(),
       features: this.cleanLines(value.featuresText),
+      visual_icon_url: value.visualIconUrl.trim() || null,
       section_image_urls: this.cleanLines(value.sectionImageUrlsText),
       profile_spec: this.profileSpecPayload(),
       active: value.active,
@@ -617,6 +673,7 @@ export class AdminCatalogComponent {
           label: payload.label,
           description: payload.description,
           features: payload.features,
+          visual_icon_url: payload.visual_icon_url,
           section_image_urls: payload.section_image_urls,
           profile_spec: payload.profile_spec,
           active: payload.active,
@@ -643,6 +700,22 @@ export class AdminCatalogComponent {
         this.busy.set(false);
         this.message.set(option.active ? 'Seçenek yayından kaldırıldı.' : 'Seçenek yayınlandı.');
         this.loadOptions(fieldId, option.id);
+      },
+      error: (error: unknown) => this.failAction(error),
+    });
+  }
+
+  removeOption(option: AdminCatalogOption): void {
+    const fieldId = this.selectedFieldId();
+    if (!fieldId || this.busy() || !option.active) {
+      return;
+    }
+    this.beginAction();
+    this.api.deleteOption(option.id).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.message.set('Seçenek silindi. İsterseniz listeden tekrar ekleyebilirsiniz.');
+        this.loadOptions(fieldId);
       },
       error: (error: unknown) => this.failAction(error),
     });

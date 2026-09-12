@@ -110,6 +110,7 @@ const PRODUCT_META: Readonly<
     ProductType,
     {
       readonly name: string;
+      readonly material_group: 'pvc' | 'aluminium';
       readonly description: string;
       readonly mark: string;
       readonly measurement: CatalogMeasurement;
@@ -118,6 +119,7 @@ const PRODUCT_META: Readonly<
   >
 > = {
   pvc_window: {
+    material_group: 'pvc',
     name: 'PVC pencere',
     description: 'Pencere, kanatlı düzen veya kapıyla birleşik PVC doğrama',
     mark: 'P',
@@ -225,6 +227,7 @@ const PRODUCT_META: Readonly<
     ],
   },
   pvc_door: {
+    material_group: 'pvc',
     name: 'PVC kapı',
     description: 'Tek, çift, balkon veya sürme kapı',
     mark: 'K',
@@ -339,6 +342,7 @@ const PRODUCT_META: Readonly<
     ],
   },
   flyscreen: {
+    material_group: 'pvc',
     name: 'Sineklik',
     description: 'Sabit, menteşeli, sürme, stor veya plise',
     mark: 'S',
@@ -414,6 +418,7 @@ const PRODUCT_META: Readonly<
     ],
   },
   guillotine_glass: {
+    material_group: 'aluminium',
     name: 'Giyotin cam',
     description: 'Elle veya motorla hareket eden dikey cam sistemi',
     mark: 'G',
@@ -494,6 +499,7 @@ const PRODUCT_META: Readonly<
     ],
   },
   facade_cladding: {
+    material_group: 'aluminium',
     name: 'Dış cephe',
     description: 'Panel türü ve uygulama yüzeyiyle ön çalışma',
     mark: 'C',
@@ -596,6 +602,7 @@ const PRODUCT_META: Readonly<
     ],
   },
   balcony_enclosure: {
+    material_group: 'aluminium',
     name: 'Balkon kapama',
     description: 'Sürme, katlanır, giyotin cam veya PVC çözüm',
     mark: 'B',
@@ -695,6 +702,7 @@ export const FALLBACK_CATALOG_PRODUCTS: readonly CatalogProduct[] = (
   const product = PRODUCT_META[key];
   return {
     key,
+    material_group: product.material_group,
     name: product.name,
     description: product.description,
     mark: product.mark,

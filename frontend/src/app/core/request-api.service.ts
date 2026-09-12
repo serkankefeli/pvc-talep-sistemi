@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import {
   AdminRequestDetail,
   AdminRequestList,
+  AdminRequestRevision,
   AdminRequestUpdate,
   CustomerEmailSend,
   PublicRequestCreate,
@@ -76,6 +77,19 @@ export class RequestApiService {
 
   updateRequest(id: number, payload: AdminRequestUpdate): Observable<AdminRequestDetail> {
     return this.http.patch<AdminRequestDetail>(`${this.baseUrl}/admin/requests/${id}`, payload);
+  }
+
+  listRevisions(id: number): Observable<readonly AdminRequestRevision[]> {
+    return this.http.get<readonly AdminRequestRevision[]>(
+      `${this.baseUrl}/admin/requests/${id}/revisions`,
+    );
+  }
+
+  createRevision(id: number, note: string): Observable<AdminRequestRevision> {
+    return this.http.post<AdminRequestRevision>(
+      `${this.baseUrl}/admin/requests/${id}/revisions`,
+      { note },
+    );
   }
 
   setFavorite(id: number, favorite: boolean): Observable<AdminRequestFavoriteState> {

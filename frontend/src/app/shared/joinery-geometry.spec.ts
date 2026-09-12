@@ -160,4 +160,58 @@ describe('joinery geometry', () => {
     );
     expect(mullion?.width).toBeCloseTo(7, 8);
   });
+
+  it('uses bounded customer profile measurements instead of the series defaults', () => {
+    const panels = buildJoineryPanels('pvc_window', 'double_sash', 'turn', 'right');
+    const item: WindowItem = {
+      ...BASE_WINDOW,
+      drawing_version: '2',
+      layout: 'double_sash',
+      panels,
+      catalog_answers: {
+        frame_profile_width_mm: 100,
+        mullion_profile_width_mm: 40,
+      },
+    };
+
+    const geometry = calculateJoineryGeometry(item, {
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 210,
+    });
+    const first = geometry.panels[0]!;
+    const mullion = geometry.records.find((record) => record.axis === 'vertical');
+
+    expect(first.glass.x - first.frame.x).toBeCloseTo(10, 8);
+    expect(first.glass.y - first.frame.y).toBeCloseTo(10, 8);
+    expect(mullion?.width).toBeCloseTo(4, 8);
+    expect(first.glazingBead.strokeWidth).toBeCloseTo(2, 8);
+  });
+
+  it('places the selected hinge and lock hardware at the requested lock height', () => {
+    const item: WindowItem = {
+      ...BASE_WINDOW,
+      drawing_version: '2',
+      panels: buildJoineryPanels('pvc_window', 'single_sash', 'turn', 'left'),
+      catalog_answers: {
+        hinge_type: 'heavy_duty',
+        lock_type: 'multipoint',
+        lock_height_mm: 900,
+      },
+    };
+
+    const geometry = calculateJoineryGeometry(item, {
+      x: 0,
+      y: 0,
+      width: 120,
+      height: 140,
+    });
+    const hardware = geometry.panels[0]!.hardware;
+
+    expect(hardware.filter((marker) => marker.kind === 'hinge')).toHaveLength(4);
+    expect(hardware.filter((marker) => marker.kind === 'lock')).toHaveLength(1);
+    expect(hardware.filter((marker) => marker.kind === 'lock-point')).toHaveLength(2);
+    expect(hardware.find((marker) => marker.kind === 'lock')?.variant).toBe('multipoint');
+  });
 });

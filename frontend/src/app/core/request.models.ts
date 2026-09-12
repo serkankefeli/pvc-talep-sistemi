@@ -40,7 +40,7 @@ export interface PublicProductBase {
   readonly profile_series: string | null;
   readonly notes: string | null;
   readonly drawing_version: '1' | '2';
-  readonly catalog_answers: Readonly<Record<string, string | boolean>>;
+  readonly catalog_answers: Readonly<Record<string, string | boolean | number>>;
   /** Snapshot used to keep an existing request's drawing stable after catalog edits. */
   readonly profile_spec?: BalconyProfileSpec | null;
 }
@@ -221,6 +221,16 @@ export interface AdminRequestUpdate {
   readonly status?: RequestStatus;
   readonly internal_notes?: string | null;
   readonly quoted_amount?: number | null;
+}
+
+export interface AdminRequestRevision {
+  readonly id: number;
+  readonly request_id: number;
+  readonly revision_number: number;
+  readonly note: string;
+  readonly items: readonly PublicRequestItem[];
+  readonly created_by: string;
+  readonly created_at: string;
 }
 
 export interface CustomerEmailSend {

@@ -76,6 +76,27 @@ class QuoteRequestItem(SQLModel, table=True):
     quote_request: QuoteRequest | None = Relationship(back_populates="items")
 
 
+class QuoteRequestRevision(SQLModel, table=True):
+    """Immutable drawing snapshot created by an administrator."""
+
+    __tablename__ = "quote_request_revisions"
+    __table_args__ = (
+        UniqueConstraint("quote_request_id", "revision_number"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    quote_request_id: int = Field(
+        foreign_key="quote_requests.id",
+        index=True,
+        ondelete="CASCADE",
+    )
+    revision_number: int = Field(index=True)
+    note: str = Field(sa_column=Column(Text, nullable=False))
+    items_json: list[dict[str, Any]] = Field(sa_column=Column(JSON, nullable=False))
+    created_by: str = Field(max_length=120)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
 class AdminRequestFavorite(SQLModel, table=True):
     """A request pinned by one authenticated administrator."""
 
@@ -106,6 +127,20 @@ class CatalogProduct(SQLModel, table=True):
     short_height_label: str = Field(max_length=80)
 
 
+class CatalogProductMaterial(SQLModel, table=True):
+    """Admin-managed top-level material branch for a catalog product."""
+
+    __tablename__ = "catalog_product_materials"
+
+    product_key: str = Field(
+        primary_key=True,
+        foreign_key="catalog_products.key",
+        max_length=64,
+        ondelete="CASCADE",
+    )
+    material_group: str = Field(default="pvc", max_length=16, index=True)
+
+
 class CatalogField(SQLModel, table=True):
     __tablename__ = "catalog_fields"
     __table_args__ = (
@@ -127,6 +162,10 @@ class CatalogField(SQLModel, table=True):
     label: str = Field(max_length=120)
     help_text: str = Field(default="", max_length=500)
     field_type: str = Field(max_length=16)
+    unit: str = Field(default="", max_length=16)
+    min_value: float | None = Field(default=None)
+    max_value: float | None = Field(default=None)
+    step: float | None = Field(default=None)
     required: bool = Field(default=False)
     active: bool = Field(default=True, index=True)
     sort_order: int = Field(default=0, index=True)
@@ -176,6 +215,19 @@ class CatalogOptionDetail(SQLModel, table=True):
         default="",
         sa_column=Column(Text, nullable=False),
     )
+
+
+class CatalogOptionVisual(SQLModel, table=True):
+    """Dedicated selection-card artwork, kept separate from technical sections."""
+
+    __tablename__ = "catalog_option_visuals"
+
+    option_id: int = Field(
+        primary_key=True,
+        foreign_key="catalog_options.id",
+        ondelete="CASCADE",
+    )
+    icon_url: str = Field(sa_column=Column(Text, nullable=False))
 
 
 class CatalogOptionProfileSpec(SQLModel, table=True):

@@ -11,7 +11,9 @@ from .models import (
     CatalogOption,
     CatalogOptionDetail,
     CatalogOptionProfileSpec,
+    CatalogOptionVisual,
     CatalogProduct,
+    CatalogProductMaterial,
 )
 from .schemas import (
     CatalogFieldAdmin,
@@ -38,7 +40,11 @@ MAX_OPTIONS_PER_FIELD = 50
 RESERVED_DYNAMIC_FIELD_KEYS = {"notes"}
 OPTION_DETAIL_FIELDS = {"description", "features", "section_image_urls"}
 OPTION_PROFILE_SPEC_FIELD = "profile_spec"
-OPTION_AUXILIARY_FIELDS = OPTION_DETAIL_FIELDS | {OPTION_PROFILE_SPEC_FIELD}
+OPTION_VISUAL_FIELD = "visual_icon_url"
+OPTION_AUXILIARY_FIELDS = OPTION_DETAIL_FIELDS | {
+    OPTION_PROFILE_SPEC_FIELD,
+    OPTION_VISUAL_FIELD,
+}
 
 # These values change the generated drawing or panel layout. The current
 # renderer supports only the listed values, so administrators must not be able
@@ -117,12 +123,48 @@ def _assert_supported_visual_option(field: CatalogField, value: str) -> None:
         )
 
 
-def _product_admin(model: CatalogProduct) -> CatalogProductAdmin:
-    return CatalogProductAdmin.model_validate(model, from_attributes=True)
+def _material_group(session: Session, product_key: str) -> str:
+    material = session.get(CatalogProductMaterial, product_key)
+    return material.material_group if material is not None else "pvc"
+
+
+def _product_admin(session: Session, model: CatalogProduct) -> CatalogProductAdmin:
+    return CatalogProductAdmin(
+        **model.model_dump(),
+        material_group=_material_group(session, model.key),
+    )
 
 
 def _field_admin(model: CatalogField) -> CatalogFieldAdmin:
     return CatalogFieldAdmin.model_validate(model, from_attributes=True)
+
+
+def _apply_field_update(model: CatalogField, payload: CatalogFieldUpdate) -> None:
+    """Apply a patch while keeping numeric metadata internally consistent."""
+
+    next_type = payload.field_type if "field_type" in payload.model_fields_set else model.field_type
+    if next_type != "number":
+        for field_name in payload.model_fields_set:
+            setattr(model, field_name, getattr(payload, field_name))
+        model.unit = ""
+        model.min_value = None
+        model.max_value = None
+        model.step = None
+        return
+
+    candidate = {
+        name: getattr(payload, name) if name in payload.model_fields_set else getattr(model, name)
+        for name in ("unit", "min_value", "max_value", "step")
+    }
+    if any(candidate[name] is None for name in ("min_value", "max_value", "step")):
+        raise HTTPException(
+            status_code=422,
+            detail="Number fields require min_value, max_value and step.",
+        )
+    if candidate["min_value"] > candidate["max_value"]:
+        raise HTTPException(status_code=422, detail="min_value cannot exceed max_value.")
+    for field_name in payload.model_fields_set:
+        setattr(model, field_name, getattr(payload, field_name))
 
 
 def _detail_values(
@@ -141,6 +183,7 @@ def _option_admin(
     model: CatalogOption,
     detail: CatalogOptionDetail | None = None,
     profile_spec: CatalogOptionProfileSpec | None = None,
+    visual: CatalogOptionVisual | None = None,
 ) -> CatalogOptionAdmin:
     description, features, section_image_urls = _detail_values(detail)
     return CatalogOptionAdmin(
@@ -150,6 +193,7 @@ def _option_admin(
         label=model.label,
         description=description,
         features=features,
+        visual_icon_url=visual.icon_url if visual is not None else None,
         section_image_urls=section_image_urls,
         profile_spec=(
             ProfileSpec.model_validate(profile_spec, from_attributes=True)
@@ -187,6 +231,32 @@ def _profile_specs_by_option(
         )
     ).all()
     return {profile_spec.option_id: profile_spec for profile_spec in profile_specs}
+
+
+def _visuals_by_option(
+    session: Session,
+    option_ids: list[int],
+) -> dict[int, CatalogOptionVisual]:
+    if not option_ids:
+        return {}
+    visuals = session.exec(
+        select(CatalogOptionVisual).where(CatalogOptionVisual.option_id.in_(option_ids))
+    ).all()
+    return {visual.option_id: visual for visual in visuals}
+
+
+def _write_option_visual(
+    session: Session,
+    option_id: int,
+    icon_url: str,
+) -> CatalogOptionVisual:
+    visual = session.get(CatalogOptionVisual, option_id)
+    if visual is None:
+        visual = CatalogOptionVisual(option_id=option_id, icon_url=icon_url)
+    else:
+        visual.icon_url = icon_url
+    session.add(visual)
+    return visual
 
 
 def _write_option_detail(
@@ -249,6 +319,18 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
         if not required_select_fields_without_options(session, product.key)
     ]
     product_keys = [product.key for product in products]
+    materials = (
+        session.exec(
+            select(CatalogProductMaterial).where(
+                CatalogProductMaterial.product_key.in_(product_keys)
+            )
+        ).all()
+        if product_keys
+        else []
+    )
+    materials_by_product = {
+        material.product_key: material.material_group for material in materials
+    }
     fields = (
         session.exec(
             select(CatalogField)
@@ -292,6 +374,10 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
         session,
         [option.id for option in options if option.id is not None],
     )
+    option_visuals = _visuals_by_option(
+        session,
+        [option.id for option in options if option.id is not None],
+    )
     for option in options:
         description, features, section_image_urls = _detail_values(
             option_details.get(option.id)
@@ -303,6 +389,11 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
                 label=option.label,
                 description=description,
                 features=features,
+                visual_icon_url=(
+                    option_visuals[option.id].icon_url
+                    if option.id in option_visuals
+                    else None
+                ),
                 section_image_urls=section_image_urls,
                 profile_spec=(
                     ProfileSpec.model_validate(
@@ -325,6 +416,10 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
                 label=field.label,
                 help_text=field.help_text,
                 field_type=field.field_type,
+                unit=field.unit,
+                min_value=field.min_value,
+                max_value=field.max_value,
+                step=field.step,
                 required=field.required,
                 sort_order=field.sort_order,
                 options=(
@@ -339,6 +434,7 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
         products=[
             CatalogProductPublic(
                 key=product.key,
+                material_group=materials_by_product.get(product.key, "pvc"),
                 name=product.name,
                 description=product.description,
                 mark=product.mark,
@@ -390,7 +486,7 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
                 CatalogProduct.key,
             )
         ).all()
-        return [_product_admin(model) for model in models]
+        return [_product_admin(session, model) for model in models]
 
     @router.post(
         "/admin/catalog/products",
@@ -410,11 +506,17 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
                 status_code=409,
                 detail="New products must be saved as drafts before publishing.",
             )
-        model = CatalogProduct(**payload.model_dump())
+        model = CatalogProduct(**payload.model_dump(exclude={"material_group"}))
         session.add(model)
+        session.add(
+            CatalogProductMaterial(
+                product_key=payload.key,
+                material_group=payload.material_group,
+            )
+        )
         session.commit()
         session.refresh(model)
-        return _product_admin(model)
+        return _product_admin(session, model)
 
     @router.patch(
         "/admin/catalog/products/{product_key}",
@@ -431,13 +533,20 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
         if model is None:
             raise HTTPException(status_code=404, detail="Catalog product not found.")
         for field_name in payload.model_fields_set:
-            setattr(model, field_name, getattr(payload, field_name))
+            if field_name == "material_group":
+                material = session.get(CatalogProductMaterial, product_key)
+                if material is None:
+                    material = CatalogProductMaterial(product_key=product_key)
+                material.material_group = payload.material_group or "pvc"
+                session.add(material)
+            else:
+                setattr(model, field_name, getattr(payload, field_name))
         session.add(model)
         session.flush()
         _assert_product_publishable(session, product_key)
         session.commit()
         session.refresh(model)
-        return _product_admin(model)
+        return _product_admin(session, model)
 
     @router.delete(
         "/admin/catalog/products/{product_key}",
@@ -539,8 +648,7 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
                 status_code=422,
                 detail="The profile_series field must use the select type.",
             )
-        for field_name in payload.model_fields_set:
-            setattr(model, field_name, getattr(payload, field_name))
+        _apply_field_update(model, payload)
         session.add(model)
         session.flush()
         _assert_product_publishable(session, model.product_key)
@@ -594,11 +702,16 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
             session,
             [model.id for model in models if model.id is not None],
         )
+        visuals = _visuals_by_option(
+            session,
+            [model.id for model in models if model.id is not None],
+        )
         return [
             _option_admin(
                 model,
                 details.get(model.id),
                 profile_specs.get(model.id),
+                visuals.get(model.id),
             )
             for model in models
         ]
@@ -638,6 +751,7 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
         }
         profile_spec_data = payload.profile_spec
         payload_data.pop(OPTION_PROFILE_SPEC_FIELD)
+        visual_icon_url = payload_data.pop(OPTION_VISUAL_FIELD)
         model = CatalogOption(field_id=field_id, **payload_data)
         session.add(model)
         session.flush()
@@ -654,13 +768,20 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
             if profile_spec_data is not None
             else None
         )
+        visual = (
+            _write_option_visual(session, model.id, visual_icon_url)
+            if visual_icon_url is not None
+            else None
+        )
         _assert_product_publishable(session, field.product_key)
         session.commit()
         session.refresh(model)
         session.refresh(detail)
         if profile_spec is not None:
             session.refresh(profile_spec)
-        return _option_admin(model, detail, profile_spec)
+        if visual is not None:
+            session.refresh(visual)
+        return _option_admin(model, detail, profile_spec, visual)
 
     @router.patch(
         "/admin/catalog/options/{option_id}",
@@ -678,6 +799,7 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
             raise HTTPException(status_code=404, detail="Catalog option not found.")
         detail = session.get(CatalogOptionDetail, option_id)
         profile_spec = session.get(CatalogOptionProfileSpec, option_id)
+        visual = session.get(CatalogOptionVisual, option_id)
         if any(
             field_name in OPTION_DETAIL_FIELDS
             for field_name in payload.model_fields_set
@@ -715,6 +837,17 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
                     option_id,
                     payload.profile_spec,
                 )
+        if OPTION_VISUAL_FIELD in payload.model_fields_set:
+            if payload.visual_icon_url is None:
+                if visual is not None:
+                    session.delete(visual)
+                visual = None
+            else:
+                visual = _write_option_visual(
+                    session,
+                    option_id,
+                    payload.visual_icon_url,
+                )
         for field_name in payload.model_fields_set - OPTION_AUXILIARY_FIELDS:
             setattr(model, field_name, getattr(payload, field_name))
         session.add(model)
@@ -728,7 +861,9 @@ def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
             session.refresh(detail)
         if profile_spec is not None:
             session.refresh(profile_spec)
-        return _option_admin(model, detail, profile_spec)
+        if visual is not None:
+            session.refresh(visual)
+        return _option_admin(model, detail, profile_spec, visual)
 
     @router.delete(
         "/admin/catalog/options/{option_id}",

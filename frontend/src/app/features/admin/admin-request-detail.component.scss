@@ -447,3 +447,41 @@ dd a {
     width: 100%;
   }
 }
+.revision-entry {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.revision-entry small,
+.revision-entry p,
+.project-output-panel p {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media print {
+  app-admin-shell,
+  .side-column,
+  .detail-actions,
+  nav {
+    display: none !important;
+  }
+
+  .detail-layout,
+  .main-column,
+  .panel {
+    border: 0;
+    box-shadow: none;
+    display: block;
+    max-width: none;
+    width: 100%;
+  }
+
+  .product-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
