@@ -128,6 +128,8 @@ Once yalniz HTTP ve ACME dogrulamasini iceren gecici vhost etkinlestirilir:
 
 ```bash
 install -d /var/www/certbot
+install -d /etc/nginx/snippets
+cp /opt/pvc/deploy/nginx/pvc-proxy-pass.conf /etc/nginx/snippets/pvc-proxy-pass.conf
 cp /opt/pvc/deploy/nginx/teklif.sunyapi.com-bootstrap.conf /etc/nginx/sites-available/teklif.sunyapi.com
 ln -sfn /etc/nginx/sites-available/teklif.sunyapi.com /etc/nginx/sites-enabled/teklif.sunyapi.com
 nginx -t && systemctl reload nginx
