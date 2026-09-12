@@ -1,6 +1,6 @@
-# Uretim Kurulumu — pvc.montajtakip.com
+# Uretim Kurulumu — teklif.sunyapi.com
 
-Hedef sunucu `46.224.58.194`. Uygulama tek alan adindan yayinlanir: web
+Hedef Sunyapi sunucusu `49.13.239.82`. Uygulama tek alan adindan yayinlanir: web
 container'inin nginx'i `/api/` isteklerini ag uzerinden api container'ina
 tasidigi icin ayri bir api subdomain'i gerekmez.
 
@@ -41,21 +41,21 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 ## 1. DNS
 
-Cloudflare'de `montajtakip.com` bolgesine A kaydi eklenir:
+Cloudflare'de `sunyapi.com` bolgesine A kaydi eklenir:
 
 | Tur | Ad  | Icerik          | Proxy      |
 |-----|-----|-----------------|------------|
-| A   | pvc | 46.224.58.194   | DNS only   |
+| A   | teklif | 49.13.239.82 | DNS only   |
 
 Kok alan adi su an DNS-only oldugu icin ayni duzen korunmustur. **Turuncu
-buluta alinacaksa** `deploy/nginx/pvc.montajtakip.com.conf` dosyasinin
+buluta alinacaksa** `deploy/nginx/teklif.sunyapi.com.conf` dosyasinin
 sonundaki nota bakin: `set_real_ip_from` eklenmezse hiz sinirlayici butun
 ziyaretcileri tek Cloudflare IP'si olarak gorur.
 
 Yayilmayi dogrulayin:
 
 ```bash
-dig +short pvc.montajtakip.com @1.1.1.1
+dig +short teklif.sunyapi.com @1.1.1.1
 ```
 
 ## 2. Kodu sunucuya alin
@@ -124,17 +124,20 @@ curl -sf http://127.0.0.1:4310/api/v1/health && curl -sI http://127.0.0.1:4310/ 
 
 ## 5. Host nginx ve TLS
 
+Once yalniz HTTP ve ACME dogrulamasini iceren gecici vhost etkinlestirilir:
+
 ```bash
-cp /opt/pvc/deploy/nginx/pvc.montajtakip.com.conf /etc/nginx/sites-available/pvc.montajtakip.com
-ln -s /etc/nginx/sites-available/pvc.montajtakip.com /etc/nginx/sites-enabled/
 install -d /var/www/certbot
+cp /opt/pvc/deploy/nginx/teklif.sunyapi.com-bootstrap.conf /etc/nginx/sites-available/teklif.sunyapi.com
+ln -sfn /etc/nginx/sites-available/teklif.sunyapi.com /etc/nginx/sites-enabled/teklif.sunyapi.com
+nginx -t && systemctl reload nginx
 ```
 
-Sertifika alinmadan once vhost'taki `ssl_certificate` yollari mevcut olmadigi
-icin `nginx -t` basarisiz olur. Sirasi: once sertifika, sonra tam vhost.
+Sertifika alindiktan sonra ayni vhost tam TLS yapilandirmasiyla degistirilir:
 
 ```bash
-certbot certonly --webroot -w /var/www/certbot -d pvc.montajtakip.com
+certbot certonly --webroot -w /var/www/certbot -d teklif.sunyapi.com
+cp /opt/pvc/deploy/nginx/teklif.sunyapi.com.conf /etc/nginx/sites-available/teklif.sunyapi.com
 nginx -t && systemctl reload nginx
 ```
 
@@ -147,16 +150,16 @@ systemctl list-timers | grep certbot
 ## 6. Kurulum sonrasi dogrulama
 
 ```bash
-curl -sI https://pvc.montajtakip.com/ | head -1
-curl -sf https://pvc.montajtakip.com/api/v1/health
-curl -sI https://pvc.montajtakip.com/ | grep -i strict-transport-security
-curl -sI http://pvc.montajtakip.com/ | head -1     # 301 beklenir
+curl -sI https://teklif.sunyapi.com/ | head -1
+curl -sf https://teklif.sunyapi.com/api/v1/health
+curl -sI https://teklif.sunyapi.com/ | grep -i strict-transport-security
+curl -sI http://teklif.sunyapi.com/ | head -1     # 301 beklenir
 ```
 
 API dokumantasyonunun kapali oldugunu dogrulayin (404 beklenir):
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://pvc.montajtakip.com/api/v1/docs
+curl -s -o /dev/null -w '%{http_code}\n' https://teklif.sunyapi.com/api/v1/docs
 ```
 
 ## Hiz sinirlayici ve gercek ziyaretci IP'si
