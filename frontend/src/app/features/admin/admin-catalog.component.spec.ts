@@ -127,6 +127,46 @@ describe('AdminCatalogComponent custom products', () => {
     expect(fixture.nativeElement.querySelector('#catalogProductMark')).toBeNull();
   });
 
+  it('separates guided questions from product and technical fields', () => {
+    const fixture = TestBed.createComponent(AdminCatalogComponent);
+    const component = fixture.componentInstance;
+    component.fields.set([
+      {
+        id: 1,
+        product_key: 'pvc_window',
+        key: 'usage_primary',
+        label: 'Bu pencere nerede kullanılacak?',
+        help_text: '',
+        field_type: 'select',
+        required: false,
+        active: true,
+        sort_order: 100,
+      },
+      {
+        id: 2,
+        product_key: 'pvc_window',
+        key: 'frame_profile_width_mm',
+        label: 'Çerçeve görünür genişliği',
+        help_text: '',
+        field_type: 'number',
+        unit: 'mm',
+        min_value: 30,
+        max_value: 200,
+        step: 1,
+        required: false,
+        active: true,
+        sort_order: 52,
+      },
+    ]);
+
+    const [questions, configuration] = component.fieldGroups();
+
+    expect(questions.fields.map((field) => field.key)).toEqual(['usage_primary']);
+    expect(configuration.fields.map((field) => field.key)).toEqual([
+      'frame_profile_width_mm',
+    ]);
+  });
+
   it('creates a bounded numeric measurement field for the public configurator', () => {
     const createdField: AdminCatalogField = {
       id: 95,

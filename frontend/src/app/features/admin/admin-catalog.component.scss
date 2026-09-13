@@ -227,6 +227,48 @@
   overflow: auto;
 }
 
+.field-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.field-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field-group-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.field-group-heading h4,
+.field-group-heading p {
+  margin: 0;
+}
+
+.field-group-heading p,
+.empty-entity-list {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.field-group-heading span {
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.empty-entity-list {
+  margin: 0;
+  padding: 0.85rem;
+}
+
 .entity-row {
   justify-content: space-between;
 }

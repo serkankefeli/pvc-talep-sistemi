@@ -161,6 +161,27 @@ export class AdminCatalogComponent {
   readonly selectedField = computed(() =>
     this.fields().find((field) => field.id === this.selectedFieldId()),
   );
+  readonly fieldGroups = computed(() => {
+    const questions: AdminCatalogField[] = [];
+    const configuration: AdminCatalogField[] = [];
+    for (const field of this.fields()) {
+      (field.key.startsWith('usage_') ? questions : configuration).push(field);
+    }
+    return [
+      {
+        key: 'questions',
+        title: 'Kısa sorular',
+        description: 'Müşteriye ürün seçiminden sonra sorulan rehber soruları',
+        fields: questions,
+      },
+      {
+        key: 'configuration',
+        title: 'Ürün seçimleri ve teknik alanlar',
+        description: 'Model, renk, profil, donanım ve teknik ölçü alanları',
+        fields: configuration,
+      },
+    ] as const;
+  });
   readonly canManageProfileSpec = computed(
     () =>
       this.selectedField()?.key === 'profile_series' ||

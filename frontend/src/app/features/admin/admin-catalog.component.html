@@ -175,49 +175,64 @@
             <div class="editor-title">
               <div>
                 <p class="eyebrow">FORM ALANLARI</p>
-                <h3>Sorular ve seçimler</h3>
+                <h3>Alan yönetimi</h3>
               </div>
               <button type="button" class="button secondary compact" (click)="startNewField()">
                 Alan ekle
               </button>
             </div>
 
-            <div class="entity-list">
-              @for (field of fields(); track field.id) {
-                <div
-                  class="entity-row-wrap"
-                  [class.selected]="selectedFieldId() === field.id && !fieldIsNew()"
-                  [class.inactive]="!field.active"
-                >
-                  <button type="button" class="entity-row" (click)="selectField(field)">
-                    <span>
-                      <strong>{{ field.label }}</strong>
-                      <small>{{ field.key }} · sıra {{ field.sort_order }}</small>
-                    </span>
-                    <em>{{ field.field_type }}</em>
-                  </button>
-                  @if (field.active) {
-                    <button
-                      type="button"
-                      class="option-row-action danger"
-                      [attr.aria-label]="field.label + ' alanını sil'"
-                      [disabled]="busy()"
-                      (click)="removeField(field)"
-                    >
-                      Sil
-                    </button>
-                  } @else {
-                    <button
-                      type="button"
-                      class="option-row-action"
-                      [attr.aria-label]="field.label + ' alanını tekrar ekle'"
-                      [disabled]="busy()"
-                      (click)="toggleField(field)"
-                    >
-                      Geri ekle
-                    </button>
-                  }
-                </div>
+            <div class="field-groups">
+              @for (group of fieldGroups(); track group.key) {
+                <section class="field-group" [attr.aria-labelledby]="'field-group-' + group.key">
+                  <div class="field-group-heading">
+                    <div>
+                      <h4 [id]="'field-group-' + group.key">{{ group.title }}</h4>
+                      <p>{{ group.description }}</p>
+                    </div>
+                    <span>{{ group.fields.length }}</span>
+                  </div>
+                  <div class="entity-list">
+                    @for (field of group.fields; track field.id) {
+                      <div
+                        class="entity-row-wrap"
+                        [class.selected]="selectedFieldId() === field.id && !fieldIsNew()"
+                        [class.inactive]="!field.active"
+                      >
+                        <button type="button" class="entity-row" (click)="selectField(field)">
+                          <span>
+                            <strong>{{ field.label }}</strong>
+                            <small>{{ field.key }} · sıra {{ field.sort_order }}</small>
+                          </span>
+                          <em>{{ field.field_type }}</em>
+                        </button>
+                        @if (field.active) {
+                          <button
+                            type="button"
+                            class="option-row-action danger"
+                            [attr.aria-label]="field.label + ' alanını sil'"
+                            [disabled]="busy()"
+                            (click)="removeField(field)"
+                          >
+                            Sil
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="option-row-action"
+                            [attr.aria-label]="field.label + ' alanını tekrar ekle'"
+                            [disabled]="busy()"
+                            (click)="toggleField(field)"
+                          >
+                            Geri ekle
+                          </button>
+                        }
+                      </div>
+                    } @empty {
+                      <p class="empty-entity-list">Bu grupta henüz alan yok.</p>
+                    }
+                  </div>
+                </section>
               }
             </div>
 
