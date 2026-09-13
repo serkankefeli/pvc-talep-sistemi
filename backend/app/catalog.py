@@ -428,7 +428,7 @@ SPECIAL_SYSTEM_GUIDES = [
             ("advisor", "Emin değilim, uzman yönlendirsin"),
         ],
         100,
-        help_text="Uygun model ve eşik değerlendirmesine yardımcı olur.",
+        help_text="",
         required=False,
     ),
     _select(
@@ -441,7 +441,7 @@ SPECIAL_SYSTEM_GUIDES = [
             ("advisor", "Uzman önerisi"),
         ],
         110,
-        help_text="Sistem serisi uzman kontrolünde kesinleşir.",
+        help_text="",
         required=False,
     ),
     _select(
@@ -454,7 +454,7 @@ SPECIAL_SYSTEM_GUIDES = [
             ("advisor", "Uzman belirlesin"),
         ],
         120,
-        help_text="Nihai eşik çözümü keşifte kontrol edilir.",
+        help_text="",
         required=False,
     ),
 ]
@@ -466,6 +466,13 @@ for _special_product_key in (
     "folding_system",
 ):
     GUIDED_FIELDS[_special_product_key] = SPECIAL_SYSTEM_GUIDES
+
+
+LEGACY_SPECIAL_SYSTEM_HELP_TEXTS = {
+    "usage_primary": "Uygun model ve eşik değerlendirmesine yardımcı olur.",
+    "usage_secondary": "Sistem serisi uzman kontrolünde kesinleşir.",
+    "usage_tertiary": "Nihai eşik çözümü keşifte kontrol edilir.",
+}
 
 
 PRODUCT_FIELDS: dict[str, list[dict[str, Any]]] = {
@@ -1253,6 +1260,21 @@ def seed_catalog(engine: Engine) -> None:
                                     **default_spec,
                                 )
                             )
+
+            # Eski kurulumlarda bu dört ürünün kısa sorularına sabit
+            # yardım metinleri yazılmıştı. Yalnız birebir eski varsayılanı
+            # taşıyan kayıtlar temizlenir; panelden girilmiş özel metinlere
+            # dokunulmaz.
+            if product_key in {
+                "volkswagen_sliding_door",
+                "hebeschiebe_system",
+                "pivot_system",
+                "folding_system",
+            }:
+                for field_key, legacy_text in LEGACY_SPECIAL_SYSTEM_HELP_TEXTS.items():
+                    field = fields_by_key.get(field_key)
+                    if field is not None and field.help_text == legacy_text:
+                        field.help_text = ""
 
         session.commit()
 

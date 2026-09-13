@@ -376,6 +376,33 @@ def test_seed_reconciles_new_pivot_fields_without_overwriting_admin_edits(
         assert field_counts == {key: 1 for key in new_field_keys}
 
 
+def test_seed_removes_only_legacy_special_question_help_texts(
+    catalog_context,
+) -> None:
+    _, engine = catalog_context
+    with Session(engine) as session:
+        fields = session.exec(
+            select(CatalogField).where(CatalogField.product_key == "pivot_system")
+        ).all()
+        fields_by_key = {field.key: field for field in fields}
+        fields_by_key["usage_primary"].help_text = (
+            "Uygun model ve eşik değerlendirmesine yardımcı olur."
+        )
+        fields_by_key["usage_secondary"].help_text = "Yöneticinin özel açıklaması"
+        session.commit()
+
+    seed_catalog(engine)
+
+    with Session(engine) as session:
+        fields = session.exec(
+            select(CatalogField).where(CatalogField.product_key == "pivot_system")
+        ).all()
+        fields_by_key = {field.key: field for field in fields}
+        assert fields_by_key["usage_primary"].help_text == ""
+        assert fields_by_key["usage_secondary"].help_text == "Yöneticinin özel açıklaması"
+        assert fields_by_key["usage_tertiary"].help_text == ""
+
+
 @pytest.mark.parametrize("product_type", ["pvc_window", "pvc_door"])
 def test_joinery_panels_round_trip_for_window_and_door(
     catalog_context,

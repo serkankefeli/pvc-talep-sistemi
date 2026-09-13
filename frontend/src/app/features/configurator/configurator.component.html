@@ -169,58 +169,60 @@
           </div>
         }
 
-        <section class="guided-questions field-wide" aria-labelledby="usage-questions-title">
-          <div class="mini-heading">
-            <div>
-              <p class="eyebrow">ÖNCE İHTİYACINIZ</p>
-              <h3 id="usage-questions-title">Size uygun çözümü anlayalım</h3>
+        @if (currentQuestions().length > 0) {
+          <section class="guided-questions field-wide" aria-labelledby="usage-questions-title">
+            <div class="mini-heading">
+              <div>
+                <p class="eyebrow">ÖNCE İHTİYACINIZ</p>
+                <h3 id="usage-questions-title">Size uygun çözümü anlayalım</h3>
+              </div>
+              <span>{{ currentQuestions().length }} kısa soru</span>
             </div>
-            <span>{{ currentQuestions().length }} kısa soru</span>
-          </div>
-          <div class="question-grid" [formGroup]="catalogForm()">
-            @for (field of currentQuestions(); track field.id; let index = $index) {
-              <div class="field question-field">
-                @switch (field.field_type) {
-                  @case ('select') {
-                    <label [for]="'catalog-question-' + index">{{ field.label }}</label>
-                    <select
-                      [id]="'catalog-question-' + index"
-                      [formControlName]="field.key"
-                      [attr.aria-required]="field.required"
-                    >
-                      <option value="" disabled>Seçin</option>
-                      @for (option of field.options; track option.id) {
-                        <option [value]="option.value">{{ option.label }}</option>
-                      }
-                    </select>
-                  }
-                  @case ('boolean') {
-                    <label class="dynamic-check" [for]="'catalog-question-' + index">
+            <div class="question-grid" [formGroup]="catalogForm()">
+              @for (field of currentQuestions(); track field.id; let index = $index) {
+                <div class="field question-field">
+                  @switch (field.field_type) {
+                    @case ('select') {
+                      <label [for]="'catalog-question-' + index">{{ field.label }}</label>
+                      <select
+                        [id]="'catalog-question-' + index"
+                        [formControlName]="field.key"
+                        [attr.aria-required]="field.required"
+                      >
+                        <option value="" disabled>Seçin</option>
+                        @for (option of field.options; track option.id) {
+                          <option [value]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    }
+                    @case ('boolean') {
+                      <label class="dynamic-check" [for]="'catalog-question-' + index">
+                        <input
+                          [id]="'catalog-question-' + index"
+                          type="checkbox"
+                          [formControlName]="field.key"
+                        />
+                        {{ field.label }}
+                      </label>
+                    }
+                    @case ('text') {
+                      <label [for]="'catalog-question-' + index">{{ field.label }}</label>
                       <input
                         [id]="'catalog-question-' + index"
-                        type="checkbox"
+                        type="text"
+                        maxlength="500"
                         [formControlName]="field.key"
                       />
-                      {{ field.label }}
-                    </label>
+                    }
                   }
-                  @case ('text') {
-                    <label [for]="'catalog-question-' + index">{{ field.label }}</label>
-                    <input
-                      [id]="'catalog-question-' + index"
-                      type="text"
-                      maxlength="500"
-                      [formControlName]="field.key"
-                    />
+                  @if (field.help_text) {
+                    <small>{{ field.help_text }}</small>
                   }
-                }
-                @if (field.help_text) {
-                  <small>{{ field.help_text }}</small>
-                }
-              </div>
-            }
-          </div>
-        </section>
+                </div>
+              }
+            </div>
+          </section>
+        }
 
         @if (isBalcony()) {
           <section class="balcony-measurement field-wide" aria-labelledby="balcony-plan-title">
