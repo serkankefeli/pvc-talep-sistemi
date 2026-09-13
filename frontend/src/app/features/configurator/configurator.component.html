@@ -212,6 +212,7 @@
                         type="text"
                         maxlength="500"
                         [formControlName]="field.key"
+                        [placeholder]="field.placeholder || ''"
                       />
                     }
                   }
@@ -716,7 +717,7 @@
                           [step]="field.step ?? 1"
                           [formControlName]="field.key"
                           [attr.aria-required]="field.required"
-                          placeholder="Seriye göre"
+                          [placeholder]="field.placeholder || ''"
                         />
                         @if (field.unit) {
                           <span aria-hidden="true">{{ field.unit }}</span>

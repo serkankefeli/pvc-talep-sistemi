@@ -623,6 +623,7 @@ class CatalogFieldPublic(StrictModel):
     key: str
     label: str
     help_text: str
+    placeholder: str = ""
     field_type: CatalogFieldType
     unit: str = ""
     min_value: float | None = None
@@ -713,6 +714,7 @@ class CatalogFieldCreate(StrictModel):
     key: CatalogKey = Field(max_length=64)
     label: PublicCatalogText = Field(min_length=1, max_length=120)
     help_text: PublicCatalogText = Field(default="", max_length=500)
+    placeholder: PublicCatalogText = Field(default="", max_length=160)
     field_type: CatalogFieldType
     unit: PlainText = Field(default="", max_length=16)
     min_value: float | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)
@@ -739,6 +741,7 @@ class CatalogFieldCreate(StrictModel):
 class CatalogFieldUpdate(StrictModel):
     label: PublicCatalogText | None = Field(default=None, min_length=1, max_length=120)
     help_text: PublicCatalogText | None = Field(default=None, max_length=500)
+    placeholder: PublicCatalogText | None = Field(default=None, max_length=160)
     field_type: CatalogFieldType | None = None
     unit: PlainText | None = Field(default=None, max_length=16)
     min_value: float | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)

@@ -415,6 +415,7 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
                 key=field.key,
                 label=field.label,
                 help_text=field.help_text,
+                placeholder=field.placeholder,
                 field_type=field.field_type,
                 unit=field.unit,
                 min_value=field.min_value,

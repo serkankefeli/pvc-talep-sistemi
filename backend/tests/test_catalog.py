@@ -583,13 +583,14 @@ def test_public_catalog_has_exact_active_only_noncommercial_contract(
                 "id",
                 "key",
                 "label",
-                    "help_text",
-                    "field_type",
-                    "unit",
-                    "min_value",
-                    "max_value",
-                    "step",
-                    "required",
+                "help_text",
+                "placeholder",
+                "field_type",
+                "unit",
+                "min_value",
+                "max_value",
+                "step",
+                "required",
                 "sort_order",
                 "options",
             }
@@ -1436,6 +1437,7 @@ def test_numeric_catalog_field_round_trip_and_submission_bounds(catalog_context)
     assert frame_field == {
         **frame_field,
         "field_type": "number",
+        "placeholder": "Seriye göre",
         "unit": "mm",
         "min_value": 30.0,
         "max_value": 200.0,
@@ -1458,6 +1460,7 @@ def test_numeric_catalog_field_round_trip_and_submission_bounds(catalog_context)
             "key": "custom_hardware_offset_mm",
             "label": "Özel donanım mesafesi",
             "help_text": "Teknik ölçü",
+            "placeholder": "Özel ölçünüz",
             "field_type": "number",
             "unit": "mm",
             "min_value": 10,
@@ -1470,6 +1473,15 @@ def test_numeric_catalog_field_round_trip_and_submission_bounds(catalog_context)
     )
     assert created.status_code == 201
     assert created.json()["unit"] == "mm"
+    assert created.json()["placeholder"] == "Özel ölçünüz"
+
+    updated = client.patch(
+        f"/api/v1/admin/catalog/fields/{created.json()['id']}",
+        headers=headers,
+        json={"placeholder": ""},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["placeholder"] == ""
 
     invalid_definition = client.post(
         "/api/v1/admin/catalog/products/pvc_window/fields",

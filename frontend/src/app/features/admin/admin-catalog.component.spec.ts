@@ -134,6 +134,7 @@ describe('AdminCatalogComponent custom products', () => {
       key: 'frame_profile_width_mm',
       label: 'Çerçeve görünür genişliği',
       help_text: 'Teknik ölçü',
+      placeholder: 'Seriye göre',
       field_type: 'number',
       unit: 'mm',
       min_value: 30,
@@ -153,6 +154,7 @@ describe('AdminCatalogComponent custom products', () => {
       key: createdField.key,
       label: createdField.label,
       helpText: createdField.help_text,
+      placeholder: createdField.placeholder,
       fieldType: 'number',
       unit: 'mm',
       minValue: 30,
@@ -169,6 +171,7 @@ describe('AdminCatalogComponent custom products', () => {
       'pvc_window',
       expect.objectContaining({
         field_type: 'number',
+        placeholder: 'Seriye göre',
         unit: 'mm',
         min_value: 30,
         max_value: 200,

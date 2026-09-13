@@ -161,6 +161,7 @@ class CatalogField(SQLModel, table=True):
     key: str = Field(max_length=64)
     label: str = Field(max_length=120)
     help_text: str = Field(default="", max_length=500)
+    placeholder: str = Field(default="", max_length=160)
     field_type: str = Field(max_length=16)
     unit: str = Field(default="", max_length=16)
     min_value: float | None = Field(default=None)

@@ -207,14 +207,15 @@ function cleanFields(value: unknown): readonly CatalogField[] {
       const key = cleanText(source['key'], 64);
       const label = cleanText(source['label'], 160);
       const helpText = cleanText(source['help_text'], 300);
+      const placeholder = cleanText(source['placeholder'], 160);
       const fieldType = source['field_type'];
       if (
         !isSafeCatalogFieldKey(key) ||
         !label ||
         typeof fieldType !== 'string' ||
         !FIELD_TYPES.has(fieldType as CatalogFieldType) ||
-        containsRestrictedPublicTerm(`${key} ${label} ${helpText}`) ||
-        UNSAFE_PUBLIC_TEXT.test(`${label} ${helpText}`)
+        containsRestrictedPublicTerm(`${key} ${label} ${helpText} ${placeholder}`) ||
+        UNSAFE_PUBLIC_TEXT.test(`${label} ${helpText} ${placeholder}`)
       ) {
         return null;
       }
@@ -237,6 +238,7 @@ function cleanFields(value: unknown): readonly CatalogField[] {
         key,
         label,
         help_text: helpText,
+        placeholder,
         field_type: fieldType as CatalogFieldType,
         unit: fieldType === 'number' ? unit : '',
         min_value: fieldType === 'number' ? minValue : null,

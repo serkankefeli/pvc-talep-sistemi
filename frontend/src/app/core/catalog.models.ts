@@ -30,6 +30,7 @@ export interface CatalogField {
   readonly key: string;
   readonly label: string;
   readonly help_text: string;
+  readonly placeholder?: string;
   readonly field_type: CatalogFieldType;
   readonly unit?: string;
   readonly min_value?: number | null;
@@ -99,6 +100,7 @@ export interface CatalogFieldWrite {
   readonly key: string;
   readonly label: string;
   readonly help_text: string;
+  readonly placeholder: string;
   readonly field_type: CatalogFieldType;
   readonly unit: string;
   readonly min_value: number | null;

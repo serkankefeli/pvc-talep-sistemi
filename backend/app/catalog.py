@@ -157,12 +157,14 @@ def _number(
     max_value: float,
     step: float = 1,
     help_text: str = "",
+    placeholder: str = "Seriye göre",
     required: bool = False,
 ) -> dict[str, Any]:
     return {
         "key": key,
         "label": label,
         "help_text": help_text,
+        "placeholder": placeholder,
         "field_type": "number",
         "unit": unit,
         "min_value": min_value,

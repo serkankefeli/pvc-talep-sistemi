@@ -221,6 +221,7 @@ export class AdminCatalogComponent {
     ]),
     label: this.fb.control('', [Validators.required, Validators.maxLength(160), safePublicText]),
     helpText: this.fb.control('', [Validators.maxLength(300), safePublicText]),
+    placeholder: this.fb.control('', [Validators.maxLength(160), safePublicText]),
     fieldType: this.fb.control<CatalogFieldType>('select'),
     unit: this.fb.control('', [Validators.maxLength(16), safePublicText]),
     minValue: this.fb.control(0, [Validators.required, Validators.min(-1_000_000_000)]),
@@ -453,6 +454,7 @@ export class AdminCatalogComponent {
       key: field.key,
       label: field.label,
       helpText: field.help_text,
+      placeholder: field.placeholder ?? '',
       fieldType: field.field_type,
       unit: field.unit ?? '',
       minValue: field.min_value ?? 0,
@@ -476,6 +478,7 @@ export class AdminCatalogComponent {
       key: '',
       label: '',
       helpText: '',
+      placeholder: '',
       fieldType: 'select',
       unit: '',
       minValue: 0,
@@ -504,6 +507,7 @@ export class AdminCatalogComponent {
       key: value.key.trim(),
       label: value.label.trim(),
       help_text: value.helpText.trim(),
+      placeholder: value.placeholder.trim(),
       field_type: value.fieldType,
       unit: numericField ? value.unit.trim() : '',
       min_value: numericField ? value.minValue : null,
@@ -518,6 +522,7 @@ export class AdminCatalogComponent {
       : this.api.updateField(this.selectedFieldId()!, {
           label: payload.label,
           help_text: payload.help_text,
+          placeholder: payload.placeholder,
           field_type: payload.field_type,
           ...(numericField
             ? {
