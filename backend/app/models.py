@@ -111,6 +111,24 @@ class AdminRequestFavorite(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class AdminUser(SQLModel, table=True):
+    """Database-backed administrator account with revocable sessions."""
+
+    __tablename__ = "admin_users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(max_length=64, unique=True, index=True)
+    display_name: str = Field(max_length=120)
+    password_hash: str = Field(max_length=255)
+    is_active: bool = Field(default=True, index=True)
+    is_superuser: bool = Field(default=False, index=True)
+    token_version: int = Field(default=1, ge=1)
+    last_login_at: datetime | None = None
+    password_changed_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class CatalogProduct(SQLModel, table=True):
     __tablename__ = "catalog_products"
 

@@ -456,7 +456,7 @@ def _public_catalog(session: Session) -> PublicCatalogResponse:
 
 def build_catalog_router(*, settings: Settings, engine: Engine) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
-    require_admin = build_admin_dependency(settings)
+    require_admin = build_admin_dependency(settings, engine)
 
     def get_session():
         with Session(engine) as session:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -10,8 +9,12 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
+from sqlalchemy.engine import Engine
+from sqlmodel import Session, select
 
 from .config import Settings
+from .models import AdminUser
 
 
 _password_hash = PasswordHash.recommended()
@@ -20,34 +23,33 @@ _bearer = HTTPBearer(auto_error=False)
 
 @dataclass(frozen=True)
 class AdminPrincipal:
+    id: int
     username: str
+    display_name: str
+    is_superuser: bool
+    token_version: int
 
 
 def hash_password(password: str) -> str:
     return _password_hash.hash(password)
 
 
-def verify_admin_credentials(
-    username: str,
-    password: str,
-    settings: Settings,
-) -> bool:
-    if not settings.admin_password_hash:
+def verify_password(password: str, password_hash: str) -> bool:
+    if not password_hash:
+        return False
+    try:
+        return _password_hash.verify(password, password_hash)
+    except (UnknownHashError, ValueError, TypeError):
         return False
 
-    username_matches = hmac.compare_digest(username, settings.admin_username)
-    try:
-        password_matches = _password_hash.verify(password, settings.admin_password_hash)
-    except (ValueError, TypeError):
-        password_matches = False
-    return username_matches and password_matches
 
-
-def create_access_token(settings: Settings) -> str:
+def create_access_token(settings: Settings, user: AdminUser) -> str:
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=settings.jwt_expire_minutes)
     payload: dict[str, Any] = {
-        "sub": settings.admin_username,
+        "sub": user.username,
+        "uid": user.id,
+        "ver": user.token_version,
         "type": "admin",
         "iss": settings.jwt_issuer,
         "iat": now,
@@ -61,7 +63,7 @@ def create_access_token(settings: Settings) -> str:
     )
 
 
-def build_admin_dependency(settings: Settings):
+def build_admin_dependency(settings: Settings, engine: Engine):
     def require_admin(
         credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     ) -> AdminPrincipal:
@@ -79,17 +81,45 @@ def build_admin_dependency(settings: Settings):
                 settings.jwt_secret,
                 algorithms=[settings.jwt_algorithm],
                 issuer=settings.jwt_issuer,
-                options={"require": ["sub", "type", "iss", "iat", "exp", "jti"]},
+                options={
+                    "require": [
+                        "sub",
+                        "uid",
+                        "ver",
+                        "type",
+                        "iss",
+                        "iat",
+                        "exp",
+                        "jti",
+                    ]
+                },
             )
         except jwt.PyJWTError as exc:
             raise authentication_error from exc
 
-        if claims.get("type") != "admin" or not hmac.compare_digest(
-            str(claims.get("sub", "")),
-            settings.admin_username,
-        ):
+        if claims.get("type") != "admin":
             raise authentication_error
-        return AdminPrincipal(username=settings.admin_username)
+        try:
+            user_id = int(claims["uid"])
+            token_version = int(claims["ver"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise authentication_error from exc
+        with Session(engine) as session:
+            user = session.exec(
+                select(AdminUser).where(
+                    AdminUser.id == user_id,
+                    AdminUser.username == str(claims.get("sub", "")),
+                )
+            ).first()
+        if user is None or not user.is_active or user.token_version != token_version:
+            raise authentication_error
+        return AdminPrincipal(
+            id=user.id,
+            username=user.username,
+            display_name=user.display_name,
+            is_superuser=user.is_superuser,
+            token_version=user.token_version,
+        )
 
     return require_admin
 

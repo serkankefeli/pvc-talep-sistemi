@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.engine import Engine
 
 from .api import build_router
+from .admin_users_api import build_admin_users_router
 from .branding_api import build_branding_router
 from .catalog_api import build_catalog_router
 from .config import Settings
@@ -29,7 +30,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        create_db_and_tables(app_engine)
+        create_db_and_tables(app_engine, settings=app_settings)
         yield
 
     app = FastAPI(
@@ -92,6 +93,12 @@ def create_app(
     )
     app.include_router(
         build_branding_router(
+            settings=app_settings,
+            engine=app_engine,
+        )
+    )
+    app.include_router(
+        build_admin_users_router(
             settings=app_settings,
             engine=app_engine,
         )

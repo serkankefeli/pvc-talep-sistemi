@@ -125,7 +125,7 @@ def _remove_logo_file(directory: Path, filename: str | None) -> None:
 
 def build_branding_router(*, settings: Settings, engine: Engine) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
-    require_admin = build_admin_dependency(settings)
+    require_admin = build_admin_dependency(settings, engine)
 
     def get_session():
         with Session(engine) as session:

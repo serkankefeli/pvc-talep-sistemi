@@ -3,7 +3,9 @@ from __future__ import annotations
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, select
+
+from .config import Settings
 
 
 def create_db_engine(database_url: str) -> Engine:
@@ -17,18 +19,40 @@ def create_db_engine(database_url: str) -> Engine:
     return create_engine(database_url, **options)
 
 
-def create_db_and_tables(engine: Engine) -> None:
+def create_db_and_tables(engine: Engine, *, settings: Settings | None = None) -> None:
     # Import registers the catalog tables before metadata creation.
     from .catalog import seed_catalog
     from .models import SiteBranding
 
     SQLModel.metadata.create_all(engine)
     _ensure_catalog_field_dynamic_columns(engine)
+    if settings is not None:
+        _ensure_bootstrap_admin(engine, settings)
     seed_catalog(engine)
     with Session(engine) as session:
         if session.get(SiteBranding, 1) is None:
             session.add(SiteBranding())
             session.commit()
+
+
+def _ensure_bootstrap_admin(engine: Engine, settings: Settings) -> None:
+    """Create the environment-defined administrator only on first deployment."""
+
+    from .models import AdminUser
+
+    with Session(engine) as session:
+        if session.exec(select(AdminUser.id).limit(1)).first() is not None:
+            return
+        session.add(
+            AdminUser(
+                username=settings.admin_username.strip().casefold(),
+                display_name="Sistem Yöneticisi",
+                password_hash=settings.admin_password_hash,
+                is_active=True,
+                is_superuser=True,
+            )
+        )
+        session.commit()
 
 
 def _ensure_catalog_field_dynamic_columns(engine: Engine) -> None:

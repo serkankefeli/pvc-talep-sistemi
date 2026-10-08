@@ -55,6 +55,14 @@ export const routes: Routes = [
             (module) => module.AdminBrandingComponent,
           ),
       },
+      {
+        path: 'kullanicilar',
+        title: 'Kullanıcı Yönetimi',
+        loadComponent: () =>
+          import('./features/admin/admin-users.component').then(
+            (module) => module.AdminUsersComponent,
+          ),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

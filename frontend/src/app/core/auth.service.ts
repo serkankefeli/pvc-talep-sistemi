@@ -9,8 +9,13 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(RUNTIME_CONFIG);
   private readonly accessToken = signal<string | null>(null);
+  private readonly identity = signal<Pick<
+    AdminTokenResponse,
+    'username' | 'display_name' | 'is_superuser'
+  > | null>(null);
 
   readonly isAuthenticated = computed(() => this.accessToken() !== null);
+  readonly currentIdentity = this.identity.asReadonly();
 
   token(): string | null {
     return this.accessToken();
@@ -19,10 +24,20 @@ export class AuthService {
   login(username: string, password: string): Observable<AdminTokenResponse> {
     return this.http
       .post<AdminTokenResponse>(`${this.config.apiUrl}/api/v1/admin/login`, { username, password })
-      .pipe(tap((response) => this.accessToken.set(response.access_token)));
+      .pipe(
+        tap((response) => {
+          this.accessToken.set(response.access_token);
+          this.identity.set({
+            username: response.username,
+            display_name: response.display_name,
+            is_superuser: response.is_superuser,
+          });
+        }),
+      );
   }
 
   logout(): void {
     this.accessToken.set(null);
+    this.identity.set(null);
   }
 }

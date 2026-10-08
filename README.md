@@ -59,6 +59,12 @@ incelenebilir; ayrıntılı değerlendirme, manuel fiyat ve açık e-posta gönd
 ayrı korumalı detay ekranında yapılır. Liste/kart görünümü, gösterilecek
 sütunlar ve son görüntülenen kayıtlar yönetici çalışma alanı tercihleridir.
 
+Yönetim panelindeki **Kullanıcılar** modülü her çalışan için ayrı hesap açar.
+Sistem yöneticileri hesapları etkinleştirebilir, devre dışı bırakabilir, rol
+verebilir ve başka bir kullanıcının parolasını sıfırlayabilir. Her kullanıcı
+mevcut parolasını doğrulayarak kendi parolasını değiştirebilir. Parola veya
+hesap durumu değiştiğinde eski oturumlar sunucu tarafında geçersiz kılınır.
+
 ## Teknoloji
 
 - Frontend: Angular + TypeScript

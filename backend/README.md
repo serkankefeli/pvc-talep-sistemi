@@ -72,6 +72,10 @@ Development dokümantasyonu `http://127.0.0.1:8000/docs` adresindedir.
 | `GET` | `/api/v1/catalog` | Public | Yalnız aktif ürün, alan ve seçenekleri döndürür |
 | `POST` | `/api/v1/requests` | Public | Görsel konfigürasyon talebi oluşturur |
 | `POST` | `/api/v1/admin/login` | Public + hız sınırlı | Kısa ömürlü yönetici JWT'si verir |
+| `GET/POST` | `/api/v1/admin/users` | Sistem yöneticisi | Kullanıcıları listeler veya yeni hesap açar |
+| `PATCH` | `/api/v1/admin/users/{id}` | Sistem yöneticisi | Ad, rol ve aktiflik durumunu günceller |
+| `POST` | `/api/v1/admin/users/{id}/password` | Sistem yöneticisi | Başka bir kullanıcının parolasını sıfırlar |
+| `POST` | `/api/v1/admin/users/me/password` | Bearer JWT | Mevcut parolayı doğrulayıp kendi parolasını değiştirir |
 | `GET` | `/api/v1/admin/requests` | Bearer JWT | Talepleri listeler |
 | `GET` | `/api/v1/admin/requests/{id}` | Bearer JWT | Talep detayını gösterir |
 | `PATCH` | `/api/v1/admin/requests/{id}` | Bearer JWT | Durum, iç not ve manuel teklif tutarını günceller |

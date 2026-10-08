@@ -23,6 +23,9 @@
       @if (error()) {
         <p class="login-error" role="alert">{{ error() }}</p>
       }
+      @if (message()) {
+        <p class="login-success" role="status">{{ message() }}</p>
+      }
       <button type="submit" class="button primary" [disabled]="busy()">
         {{ busy() ? 'Doğrulanıyor…' : 'Giriş yap' }}
       </button>

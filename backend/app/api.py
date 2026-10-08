@@ -25,6 +25,7 @@ from .config import Settings
 from .catalog import validate_catalog_submission
 from .mailer import AdminNotification, MailService
 from .models import (
+    AdminUser,
     AdminRequestFavorite,
     QuoteRequest,
     QuoteRequestItem,
@@ -55,7 +56,7 @@ from .security import (
     AdminPrincipal,
     build_admin_dependency,
     create_access_token,
-    verify_admin_credentials,
+    verify_password,
 )
 
 
@@ -246,7 +247,7 @@ def build_router(
         settings.auth_rate_limit_requests,
         settings.auth_rate_limit_window_seconds,
     )
-    require_admin = build_admin_dependency(settings)
+    require_admin = build_admin_dependency(settings, engine)
 
     def get_session():
         with Session(engine) as session:
@@ -366,21 +367,38 @@ def build_router(
         tags=["admin"],
         dependencies=[Depends(enforce_auth_limit)],
     )
-    def admin_login(payload: AdminLoginRequest) -> AdminTokenResponse:
+    def admin_login(
+        payload: AdminLoginRequest,
+        session: Session = Depends(get_session),
+    ) -> AdminTokenResponse:
         if not settings.admin_password_hash:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Administrator authentication is not configured.",
             )
-        if not verify_admin_credentials(payload.username, payload.password, settings):
+        normalized_username = payload.username.strip().casefold()
+        user = session.exec(
+            select(AdminUser).where(AdminUser.username == normalized_username)
+        ).first()
+        password_hash = user.password_hash if user is not None else settings.admin_password_hash
+        password_matches = verify_password(payload.password, password_hash)
+        if user is None or not user.is_active or not password_matches:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        user.last_login_at = utc_now()
+        user.updated_at = utc_now()
+        session.add(user)
+        session.commit()
+        session.refresh(user)
         return AdminTokenResponse(
-            access_token=create_access_token(settings),
+            access_token=create_access_token(settings, user),
             expires_in=settings.jwt_expire_minutes * 60,
+            username=user.username,
+            display_name=user.display_name,
+            is_superuser=user.is_superuser,
         )
 
     @router.get(

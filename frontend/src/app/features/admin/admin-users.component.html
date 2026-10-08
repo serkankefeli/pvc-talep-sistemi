@@ -1,0 +1,215 @@
+<section class="users-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">ERİŞİM YÖNETİMİ</p>
+      <h1>Kullanıcılar ve parolalar</h1>
+      <p>Yönetim paneline erişen hesapları ve yetkilerini buradan yönetin.</p>
+    </div>
+    @if (me(); as current) {
+      <span class="current-user">{{ current.display_name }} · {{ current.username }}</span>
+    }
+  </header>
+
+  @if (loading()) {
+    <p class="state-card">Kullanıcı bilgileri yükleniyor…</p>
+  } @else {
+    <div class="account-grid">
+      <article class="panel password-panel">
+        <div class="panel-heading">
+          <p class="eyebrow">BENİM HESABIM</p>
+          <h2>Parolamı değiştir</h2>
+          <p>Değişiklikten sonra açık oturumlar kapatılır ve yeniden giriş yapmanız gerekir.</p>
+        </div>
+        <form [formGroup]="ownPasswordForm" (ngSubmit)="changeOwnPassword()">
+          <label>
+            <span>Mevcut parola</span>
+            <input type="password" formControlName="current_password" autocomplete="current-password" />
+          </label>
+          <label>
+            <span>Yeni parola</span>
+            <input type="password" formControlName="new_password" autocomplete="new-password" />
+            <small>En az 12 karakter kullanın.</small>
+          </label>
+          <label>
+            <span>Yeni parola tekrar</span>
+            <input type="password" formControlName="password_confirm" autocomplete="new-password" />
+          </label>
+          <button class="button primary" type="submit" [disabled]="busy()">
+            Parolamı değiştir
+          </button>
+        </form>
+      </article>
+
+      @if (me()?.is_superuser) {
+        <article class="panel create-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">YENİ HESAP</p>
+            <h2>Kullanıcı ekle</h2>
+            <p>Her çalışan için ayrı hesap oluşturun; ortak parola kullanmayın.</p>
+          </div>
+          <form [formGroup]="createForm" (ngSubmit)="createUser()">
+            <div class="two-columns">
+              <label>
+                <span>Adı soyadı</span>
+                <input type="text" formControlName="display_name" maxlength="120" />
+              </label>
+              <label>
+                <span>Kullanıcı adı</span>
+                <input type="text" formControlName="username" maxlength="64" autocomplete="off" />
+                <small>Harf, rakam, nokta, tire ve alt çizgi kullanılabilir.</small>
+              </label>
+            </div>
+            <div class="two-columns">
+              <label>
+                <span>Geçici parola</span>
+                <input type="password" formControlName="password" autocomplete="new-password" />
+              </label>
+              <label>
+                <span>Geçici parola tekrar</span>
+                <input type="password" formControlName="password_confirm" autocomplete="new-password" />
+              </label>
+            </div>
+            <label class="check-row">
+              <input type="checkbox" formControlName="is_superuser" />
+              <span>
+                <strong>Sistem yöneticisi</strong>
+                <small>Kullanıcı ekleme, yetki verme ve parola sıfırlama izni sağlar.</small>
+              </span>
+            </label>
+            <button class="button primary" type="submit" [disabled]="busy() || createForm.invalid">
+              Kullanıcı oluştur
+            </button>
+          </form>
+        </article>
+      }
+    </div>
+
+    @if (me()?.is_superuser) {
+      <section class="user-list-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">YÖNETİM HESAPLARI</p>
+            <h2>Kayıtlı kullanıcılar</h2>
+          </div>
+          <span>{{ users().length }} hesap</span>
+        </div>
+
+        <div class="user-list">
+          @for (user of users(); track user.id) {
+            <article class="user-card" [class.inactive]="!user.is_active">
+              <div class="user-summary">
+                <span class="avatar" aria-hidden="true">{{ user.display_name.charAt(0).toUpperCase() }}</span>
+                <span>
+                  <strong>{{ user.display_name }}</strong>
+                  <small>{{ user.username }}</small>
+                </span>
+              </div>
+              <div class="badges">
+                <span [class.admin]="user.is_superuser">
+                  {{ user.is_superuser ? 'Sistem yöneticisi' : 'Kullanıcı' }}
+                </span>
+                <span [class.active]="user.is_active">
+                  {{ user.is_active ? 'Aktif' : 'Devre dışı' }}
+                </span>
+              </div>
+              <div class="user-dates">
+                <small>
+                  Son giriş:
+                  {{ user.last_login_at ? (user.last_login_at | date: 'dd.MM.yyyy HH:mm') : 'Henüz giriş yapmadı' }}
+                </small>
+              </div>
+              <div class="user-actions">
+                <button
+                  type="button"
+                  class="button secondary"
+                  [disabled]="busy()"
+                  (click)="beginEdit(user)"
+                >
+                  Adı düzenle
+                </button>
+                <button
+                  type="button"
+                  class="button secondary"
+                  [disabled]="busy() || user.id === me()?.id"
+                  (click)="setSuperuser(user, !user.is_superuser)"
+                >
+                  {{ user.is_superuser ? 'Yönetici yetkisini kaldır' : 'Yönetici yap' }}
+                </button>
+                <button
+                  type="button"
+                  class="button secondary"
+                  [disabled]="busy() || user.id === me()?.id"
+                  (click)="setActive(user, !user.is_active)"
+                >
+                  {{ user.is_active ? 'Devre dışı bırak' : 'Etkinleştir' }}
+                </button>
+                <button
+                  type="button"
+                  class="button secondary"
+                  [disabled]="busy() || user.id === me()?.id"
+                  (click)="beginPasswordReset(user)"
+                >
+                  Yeni parola ver
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  }
+
+  @if (resetTarget(); as target) {
+    <div class="modal-backdrop" role="presentation" (click)="cancelPasswordReset()">
+      <section class="reset-dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <div class="panel-heading">
+          <p class="eyebrow">PAROLA SIFIRLAMA</p>
+          <h2>{{ target.display_name }}</h2>
+          <p>Bu işlem kullanıcının açık oturumlarını hemen geçersiz kılar.</p>
+        </div>
+        <form [formGroup]="resetPasswordForm" (ngSubmit)="resetPassword()">
+          <label>
+            <span>Yeni parola</span>
+            <input type="password" formControlName="new_password" autocomplete="new-password" />
+          </label>
+          <label>
+            <span>Yeni parola tekrar</span>
+            <input type="password" formControlName="password_confirm" autocomplete="new-password" />
+          </label>
+          <div class="dialog-actions">
+            <button class="button secondary" type="button" (click)="cancelPasswordReset()">Vazgeç</button>
+            <button class="button primary" type="submit" [disabled]="busy()">Parolayı kaydet</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (editTarget(); as target) {
+    <div class="modal-backdrop" role="presentation" (click)="cancelEdit()">
+      <section class="reset-dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <div class="panel-heading">
+          <p class="eyebrow">KULLANICI BİLGİSİ</p>
+          <h2>{{ target.username }}</h2>
+        </div>
+        <form [formGroup]="editUserForm" (ngSubmit)="saveDisplayName()">
+          <label>
+            <span>Adı soyadı</span>
+            <input type="text" formControlName="display_name" maxlength="120" />
+          </label>
+          <div class="dialog-actions">
+            <button class="button secondary" type="button" (click)="cancelEdit()">Vazgeç</button>
+            <button class="button primary" type="submit" [disabled]="busy()">Kaydet</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (message()) {
+    <p class="feedback success" role="status">{{ message() }}</p>
+  }
+  @if (error()) {
+    <p class="feedback error" role="alert">{{ error() }}</p>
+  }
+</section>

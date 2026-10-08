@@ -19,6 +19,11 @@ export class AdminLoginComponent {
 
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
+  readonly message = signal<string | null>(
+    this.route.snapshot.queryParamMap.get('parola') === 'degisti'
+      ? 'Parolanız değiştirildi. Yeni parolanızla giriş yapabilirsiniz.'
+      : null,
+  );
   readonly form = this.fb.group({
     username: this.fb.control('', Validators.required),
     password: this.fb.control('', Validators.required),
@@ -31,6 +36,7 @@ export class AdminLoginComponent {
     }
     this.busy.set(true);
     this.error.set(null);
+    this.message.set(null);
     const { username, password } = this.form.getRawValue();
     this.auth.login(username, password).subscribe({
       next: () => {

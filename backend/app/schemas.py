@@ -471,6 +471,62 @@ class AdminTokenResponse(StrictModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"
     expires_in: int
+    username: str
+    display_name: str
+    is_superuser: bool
+
+
+class AdminUserResponse(StrictModel):
+    id: int
+    username: str
+    display_name: str
+    is_active: bool
+    is_superuser: bool
+    last_login_at: datetime | None
+    password_changed_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminUserCreate(StrictModel):
+    username: str = Field(
+        min_length=3,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$",
+    )
+    display_name: str = Field(min_length=2, max_length=120)
+    password: str = Field(min_length=12, max_length=512)
+    is_superuser: bool = False
+
+
+class AdminUserUpdate(StrictModel):
+    display_name: str | None = Field(default=None, min_length=2, max_length=120)
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+
+    @model_validator(mode="after")
+    def require_change(self) -> "AdminUserUpdate":
+        if (
+            self.display_name is None
+            and self.is_active is None
+            and self.is_superuser is None
+        ):
+            raise ValueError("At least one user field must be supplied")
+        return self
+
+
+class AdminPasswordReset(StrictModel):
+    new_password: str = Field(min_length=12, max_length=512)
+
+
+class AdminPasswordChange(AdminPasswordReset):
+    current_password: str = Field(min_length=1, max_length=512)
+
+    @model_validator(mode="after")
+    def reject_unchanged_password(self) -> "AdminPasswordChange":
+        if self.current_password == self.new_password:
+            raise ValueError("New password must be different")
+        return self
 
 
 class AdminRequestSummary(StrictModel):
