@@ -30,6 +30,15 @@ deploy/nginx/dograma.estyazilim.com-bootstrap.conf
 deploy/nginx/dograma.estyazilim.com.conf
 ```
 
+TLS yenileme zamanlayicisi:
+
+```bash
+install -m 644 deploy/systemd/dograma-certbot-renew.service /etc/systemd/system/
+install -m 644 deploy/systemd/dograma-certbot-renew.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now dograma-certbot-renew.timer
+```
+
 Saglik kontrolleri:
 
 ```bash

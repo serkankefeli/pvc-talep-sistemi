@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew dograma.estyazilim.com TLS certificate
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --cert-name dograma.estyazilim.com --config-dir /var/lib/docker/volumes/root_letsencrypt/_data --work-dir /var/lib/letsencrypt-dograma --logs-dir /var/log/letsencrypt-dograma --quiet
+ExecStartPost=/usr/bin/docker exec digital-nginx nginx -t
+ExecStartPost=/usr/bin/docker exec digital-nginx nginx -s reload
+
