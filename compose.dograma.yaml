@@ -1,0 +1,18 @@
+# dograma.estyazilim.com sunucusuna ozel ek katman.
+# Uygulamanin veritabani ve varsayilan agi ayri kalir; yalnizca web servisi
+# sunucudaki merkezi nginx'in bulundugu edge agina baglanir.
+
+name: dograma
+
+services:
+  web:
+    networks:
+      default:
+      edge:
+        aliases:
+          - dograma-web
+
+networks:
+  edge:
+    name: root_casecrafters-net
+    external: true
