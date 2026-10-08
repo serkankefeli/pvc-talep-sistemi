@@ -26,6 +26,7 @@ PVC_PUBLIC_URL=https://dograma.estyazilim.com
 Merkezi nginx vhost kaynagi:
 
 ```text
+deploy/nginx/dograma.estyazilim.com-bootstrap.conf
 deploy/nginx/dograma.estyazilim.com.conf
 ```
 
