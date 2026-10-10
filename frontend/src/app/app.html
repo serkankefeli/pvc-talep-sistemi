@@ -21,6 +21,9 @@
     </a>
     <a routerLink="/talep-olustur" routerLinkActive="active"> Talep oluştur </a>
     <a routerLink="/admin">Yönetim</a>
+    @if (auth.isAuthenticated()) {
+      <button type="button" class="nav-logout" (click)="logout()">Çıkış</button>
+    }
     <button
       type="button"
       class="theme-toggle"

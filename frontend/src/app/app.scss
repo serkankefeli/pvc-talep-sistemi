@@ -102,6 +102,28 @@ nav a.active {
   padding: 0.45rem 0.75rem;
 }
 
+.nav-logout {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted-strong);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  min-height: 2.45rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.nav-logout:hover,
+.nav-logout:focus-visible {
+  background: var(--surface);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .theme-toggle:hover {
   background: var(--forest-soft);
   border-color: var(--brand-primary);
@@ -170,6 +192,10 @@ main {
   nav a {
     font-size: 0.72rem;
     padding: 0.6rem 0.45rem;
+  }
+  .nav-logout {
+    font-size: 0.72rem;
+    padding: 0.45rem 0.55rem;
   }
   .brand {
     gap: 0.4rem;

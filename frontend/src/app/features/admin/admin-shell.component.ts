@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { SiteBrandingService } from '../../core/site-branding.service';
 
@@ -12,14 +12,8 @@ import { SiteBrandingService } from '../../core/site-branding.service';
 })
 export class AdminShellComponent {
   readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly brandingService = inject(SiteBrandingService);
 
   readonly branding = this.brandingService.branding;
   readonly brandMark = this.brandingService.brandMark;
-
-  logout(): void {
-    this.auth.logout();
-    void this.router.navigate(['/admin/giris']);
-  }
 }

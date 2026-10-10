@@ -1,6 +1,7 @@
 import { Title } from '@angular/platform-browser';
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from './core/auth.service';
 import { SiteBrandingService } from './core/site-branding.service';
 import { ThemeService } from './core/theme.service';
 
@@ -12,7 +13,9 @@ import { ThemeService } from './core/theme.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
+  readonly auth = inject(AuthService);
   private readonly brandingService = inject(SiteBrandingService);
+  private readonly router = inject(Router);
   private readonly title = inject(Title);
   private readonly themeService = inject(ThemeService);
 
@@ -27,5 +30,10 @@ export class App {
 
   toggleTheme(): void {
     this.themeService.toggle();
+  }
+
+  logout(): void {
+    this.auth.logout();
+    void this.router.navigate(['/admin/giris']);
   }
 }
