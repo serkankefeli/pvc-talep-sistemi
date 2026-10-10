@@ -11,7 +11,7 @@ import { SiteBrandingService } from '../../core/site-branding.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminShellComponent {
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly brandingService = inject(SiteBrandingService);
 

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { AdminCatalogService } from '../../core/admin-catalog.service';
+import { AuthService } from '../../core/auth.service';
 import {
   AdminCatalogField,
   AdminCatalogOption,
@@ -72,7 +73,10 @@ describe('AdminCatalogComponent custom products', () => {
     vi.clearAllMocks();
     await TestBed.configureTestingModule({
       imports: [AdminCatalogComponent],
-      providers: [{ provide: AdminCatalogService, useValue: api }],
+      providers: [
+        { provide: AdminCatalogService, useValue: api },
+        { provide: AuthService, useValue: { can: () => true } },
+      ],
     }).compileComponents();
   });
 
@@ -162,9 +166,7 @@ describe('AdminCatalogComponent custom products', () => {
     const [questions, configuration] = component.fieldGroups();
 
     expect(questions.fields.map((field) => field.key)).toEqual(['usage_primary']);
-    expect(configuration.fields.map((field) => field.key)).toEqual([
-      'frame_profile_width_mm',
-    ]);
+    expect(configuration.fields.map((field) => field.key)).toEqual(['frame_profile_width_mm']);
   });
 
   it('creates a bounded numeric measurement field for the public configurator', () => {
@@ -356,8 +358,12 @@ describe('AdminCatalogComponent custom products', () => {
     expect(api.updateOption).toHaveBeenCalledWith(44, { active: true });
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('[aria-label="Elle hareket eden sistem seçeneğini sil"]')).toBeTruthy();
-    expect(element.querySelector('[aria-label="Motorlu sistem seçeneğini tekrar ekle"]')).toBeTruthy();
+    expect(
+      element.querySelector('[aria-label="Elle hareket eden sistem seçeneğini sil"]'),
+    ).toBeTruthy();
+    expect(
+      element.querySelector('[aria-label="Motorlu sistem seçeneğini tekrar ekle"]'),
+    ).toBeTruthy();
   });
 
   it('manages structured measurements with descriptions and images for every profile series', () => {

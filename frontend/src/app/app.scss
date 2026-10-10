@@ -124,6 +124,27 @@ main {
   text-align: center;
 }
 
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+.legal-links a {
+  color: var(--brand-primary);
+}
+.payment-mark {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+.payment-mark img {
+  display: block;
+  width: 120px;
+  height: auto;
+}
+
 @media (max-width: 620px) {
   .brand small {
     display: none;
@@ -135,5 +156,29 @@ main {
 
   .theme-toggle-label {
     display: none;
+  }
+}
+
+@media (max-width: 450px) {
+  .site-header {
+    padding: 0.7rem;
+    gap: 0.5rem;
+  }
+  nav {
+    gap: 0;
+  }
+  nav a {
+    font-size: 0.72rem;
+    padding: 0.6rem 0.45rem;
+  }
+  .brand {
+    gap: 0.4rem;
+  }
+  .brand strong {
+    font-size: 0.75rem;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

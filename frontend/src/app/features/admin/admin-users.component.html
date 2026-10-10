@@ -2,7 +2,7 @@
   <header class="page-heading">
     <div>
       <p class="eyebrow">ERİŞİM YÖNETİMİ</p>
-      <h1>Kullanıcılar ve parolalar</h1>
+      <h1>Kullanıcılar, yetkiler ve parolalar</h1>
       <p>Yönetim paneline erişen hesapları ve yetkilerini buradan yönetin.</p>
     </div>
     @if (me(); as current) {
@@ -23,7 +23,11 @@
         <form [formGroup]="ownPasswordForm" (ngSubmit)="changeOwnPassword()">
           <label>
             <span>Mevcut parola</span>
-            <input type="password" formControlName="current_password" autocomplete="current-password" />
+            <input
+              type="password"
+              formControlName="current_password"
+              autocomplete="current-password"
+            />
           </label>
           <label>
             <span>Yeni parola</span>
@@ -66,16 +70,37 @@
               </label>
               <label>
                 <span>Geçici parola tekrar</span>
-                <input type="password" formControlName="password_confirm" autocomplete="new-password" />
+                <input
+                  type="password"
+                  formControlName="password_confirm"
+                  autocomplete="new-password"
+                />
               </label>
             </div>
             <label class="check-row">
               <input type="checkbox" formControlName="is_superuser" />
               <span>
                 <strong>Sistem yöneticisi</strong>
-                <small>Kullanıcı ekleme, yetki verme ve parola sıfırlama izni sağlar.</small>
+                <small
+                  >Tüm ekranlara ve işlemlere erişir; kullanıcı ekleyebilir, yetki verebilir ve
+                  parola sıfırlayabilir.</small
+                >
               </span>
             </label>
+            <p>
+              Ekran izinleri: düzenleme seçildiğinde görüntüleme de açılır. Hiç izin seçmezseniz
+              kullanıcı yalnız kendi hesabına erişir.
+            </p>
+            @if (createForm.controls.is_superuser.value) {
+              <p>Sistem yöneticisi bütün yetkilere sahiptir.</p>
+            } @else {
+              <app-permission-matrix
+                [groups]="permissionGroups()"
+                [selected]="createPermissions()"
+                [disabled]="busy()"
+                (selectionChange)="createPermissions.set($event)"
+              />
+            }
             <button class="button primary" type="submit" [disabled]="busy() || createForm.invalid">
               Kullanıcı oluştur
             </button>
@@ -98,7 +123,9 @@
           @for (user of users(); track user.id) {
             <article class="user-card" [class.inactive]="!user.is_active">
               <div class="user-summary">
-                <span class="avatar" aria-hidden="true">{{ user.display_name.charAt(0).toUpperCase() }}</span>
+                <span class="avatar" aria-hidden="true">{{
+                  user.display_name.charAt(0).toUpperCase()
+                }}</span>
                 <span>
                   <strong>{{ user.display_name }}</strong>
                   <small>{{ user.username }}</small>
@@ -115,10 +142,24 @@
               <div class="user-dates">
                 <small>
                   Son giriş:
-                  {{ user.last_login_at ? (user.last_login_at | date: 'dd.MM.yyyy HH:mm') : 'Henüz giriş yapmadı' }}
+                  {{
+                    user.last_login_at
+                      ? (user.last_login_at | date: 'dd.MM.yyyy HH:mm')
+                      : 'Henüz giriş yapmadı'
+                  }}
                 </small>
               </div>
               <div class="user-actions">
+                @if (!user.is_superuser) {
+                  <button
+                    type="button"
+                    class="button secondary"
+                    [disabled]="busy()"
+                    (click)="beginPermissions(user)"
+                  >
+                    Ekran / işlem yetkileri
+                  </button>
+                }
                 <button
                   type="button"
                   class="button secondary"
@@ -161,7 +202,12 @@
 
   @if (resetTarget(); as target) {
     <div class="modal-backdrop" role="presentation" (click)="cancelPasswordReset()">
-      <section class="reset-dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <section
+        class="reset-dialog"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
         <div class="panel-heading">
           <p class="eyebrow">PAROLA SIFIRLAMA</p>
           <h2>{{ target.display_name }}</h2>
@@ -177,17 +223,70 @@
             <input type="password" formControlName="password_confirm" autocomplete="new-password" />
           </label>
           <div class="dialog-actions">
-            <button class="button secondary" type="button" (click)="cancelPasswordReset()">Vazgeç</button>
-            <button class="button primary" type="submit" [disabled]="busy()">Parolayı kaydet</button>
+            <button class="button secondary" type="button" (click)="cancelPasswordReset()">
+              Vazgeç
+            </button>
+            <button class="button primary" type="submit" [disabled]="busy()">
+              Parolayı kaydet
+            </button>
           </div>
         </form>
       </section>
     </div>
   }
 
+  @if (permissionTarget(); as target) {
+    <div class="modal-backdrop">
+      <section
+        class="reset-dialog permission-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="permission-title"
+      >
+        <div class="panel-heading">
+          <p class="eyebrow">EKRAN VE İŞLEM YETKİLERİ</p>
+          <h2 id="permission-title">{{ target.display_name }}</h2>
+          <p>
+            Görüntüleme düzenleme izni vermez. Yetki değişikliği mevcut oturumları geçersiz kılar.
+          </p>
+        </div>
+        <app-permission-matrix
+          [groups]="permissionGroups()"
+          [selected]="selectedPermissions()"
+          [disabled]="busy()"
+          (selectionChange)="selectedPermissions.set($event)"
+        />
+        <p>Kullanıcı ekleme, yetki atama ve parola sıfırlama yalnız sistem yöneticisindedir.</p>
+        <div class="dialog-actions">
+          <button
+            class="button secondary"
+            type="button"
+            [disabled]="busy()"
+            (click)="permissionTarget.set(null)"
+          >
+            Vazgeç
+          </button>
+          <button
+            class="button primary"
+            type="button"
+            [disabled]="busy()"
+            (click)="savePermissions()"
+          >
+            Yetkileri kaydet
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+
   @if (editTarget(); as target) {
     <div class="modal-backdrop" role="presentation" (click)="cancelEdit()">
-      <section class="reset-dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <section
+        class="reset-dialog"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
         <div class="panel-heading">
           <p class="eyebrow">KULLANICI BİLGİSİ</p>
           <h2>{{ target.username }}</h2>

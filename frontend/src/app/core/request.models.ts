@@ -174,6 +174,7 @@ export interface AdminTokenResponse {
   readonly username: string;
   readonly display_name: string;
   readonly is_superuser: boolean;
+  readonly permissions?: readonly string[];
 }
 
 export interface AdminUser {
@@ -182,6 +183,7 @@ export interface AdminUser {
   readonly display_name: string;
   readonly is_active: boolean;
   readonly is_superuser: boolean;
+  readonly permissions?: readonly string[];
   readonly last_login_at: string | null;
   readonly password_changed_at: string;
   readonly created_at: string;
@@ -193,12 +195,14 @@ export interface AdminUserCreate {
   readonly display_name: string;
   readonly password: string;
   readonly is_superuser: boolean;
+  readonly permissions?: readonly string[];
 }
 
 export interface AdminUserUpdate {
   readonly display_name?: string;
   readonly is_active?: boolean;
   readonly is_superuser?: boolean;
+  readonly permissions?: readonly string[];
 }
 
 export interface AdminRequestSummary {

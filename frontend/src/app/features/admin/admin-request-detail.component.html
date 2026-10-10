@@ -216,107 +216,116 @@
         </button>
       </section>
 
-      <form class="panel admin-form" [formGroup]="updateForm" (ngSubmit)="save()">
-        <div class="panel-title">
-          <h3>İç değerlendirme</h3>
-          <span>Yalnız yönetici</span>
-        </div>
-        <div class="field">
-          <label for="requestStatus">Durum</label>
-          <select id="requestStatus" formControlName="status">
-            @for (entry of statusLabels | keyvalue; track entry.key) {
-              <option [value]="entry.key">{{ entry.value }}</option>
-            }
-          </select>
-        </div>
-        <div class="field">
-          <label for="quotedAmount">Gönderilecek tutar <span>₺</span></label>
-          <input
-            id="quotedAmount"
-            type="number"
-            min="0"
-            step="0.01"
-            formControlName="quotedAmount"
-          />
-        </div>
-        <div class="field">
-          <label for="internalNotes">İç notlar</label>
-          <textarea id="internalNotes" rows="6" formControlName="internalNotes"></textarea>
-        </div>
-        @if (saveMessage()) {
-          <p class="action-message" role="status">{{ saveMessage() }}</p>
-        }
-        <button type="submit" class="button primary" [disabled]="saving()">
-          {{ saving() ? 'Kaydediliyor…' : 'Değişiklikleri kaydet' }}
-        </button>
-      </form>
+      <fieldset appPermission="requests.edit">
+        <form class="panel admin-form" [formGroup]="updateForm" (ngSubmit)="save()">
+          <div class="panel-title">
+            <h3>İç değerlendirme</h3>
+            <span>Yalnız yönetici</span>
+          </div>
+          <div class="field">
+            <label for="requestStatus">Durum</label>
+            <select id="requestStatus" formControlName="status">
+              @for (entry of statusLabels | keyvalue; track entry.key) {
+                <option [value]="entry.key">{{ entry.value }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="quotedAmount">Gönderilecek tutar <span>₺</span></label>
+            <input
+              id="quotedAmount"
+              type="number"
+              min="0"
+              step="0.01"
+              formControlName="quotedAmount"
+            />
+          </div>
+          <div class="field">
+            <label for="internalNotes">İç notlar</label>
+            <textarea id="internalNotes" rows="6" formControlName="internalNotes"></textarea>
+          </div>
+          @if (saveMessage()) {
+            <p class="action-message" role="status">{{ saveMessage() }}</p>
+          }
+          <button type="submit" class="button primary" [disabled]="saving()">
+            {{ saving() ? 'Kaydediliyor…' : 'Değişiklikleri kaydet' }}
+          </button>
+        </form>
+      </fieldset>
 
-      <form class="panel revision-form" [formGroup]="revisionForm" (ngSubmit)="createRevision()">
-        <div class="panel-title">
-          <h3>Revizyon geçmişi</h3>
-          <span>{{ revisions().length }} kayıt</span>
-        </div>
-        <div class="field">
-          <label for="revisionNote">Revizyon notu</label>
-          <textarea id="revisionNote" rows="3" formControlName="note"></textarea>
-        </div>
-        <button type="submit" class="button secondary" [disabled]="revisionSaving()">
-          {{ revisionSaving() ? 'Oluşturuluyor…' : 'Mevcut çizimlerden revizyon oluştur' }}
-        </button>
-        @if (revisionMessage()) {
-          <p class="action-message" role="status">{{ revisionMessage() }}</p>
-        }
-        @for (revision of revisions(); track revision.id) {
-          <article class="revision-entry">
-            <strong>Revizyon {{ revision.revision_number }}</strong>
-            <small>{{ revision.created_at | date: 'dd.MM.yyyy HH:mm' }} · {{ revision.created_by }}</small>
-            <p>{{ revision.note }}</p>
-          </article>
-        }
-      </form>
+      <fieldset appPermission="requests.edit">
+        <form class="panel revision-form" [formGroup]="revisionForm" (ngSubmit)="createRevision()">
+          <div class="panel-title">
+            <h3>Revizyon geçmişi</h3>
+            <span>{{ revisions().length }} kayıt</span>
+          </div>
+          <div class="field">
+            <label for="revisionNote">Revizyon notu</label>
+            <textarea id="revisionNote" rows="3" formControlName="note"></textarea>
+          </div>
+          <button type="submit" class="button secondary" [disabled]="revisionSaving()">
+            {{ revisionSaving() ? 'Oluşturuluyor…' : 'Mevcut çizimlerden revizyon oluştur' }}
+          </button>
+          @if (revisionMessage()) {
+            <p class="action-message" role="status">{{ revisionMessage() }}</p>
+          }
+          @for (revision of revisions(); track revision.id) {
+            <article class="revision-entry">
+              <strong>Revizyon {{ revision.revision_number }}</strong>
+              <small
+                >{{ revision.created_at | date: 'dd.MM.yyyy HH:mm' }} ·
+                {{ revision.created_by }}</small
+              >
+              <p>{{ revision.note }}</p>
+            </article>
+          }
+        </form>
+      </fieldset>
 
-      <form class="panel email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">
-        <div class="panel-title">
-          <h3>Müşteriye e-posta</h3>
-          <span>Açık gönderim eylemi</span>
-        </div>
-        @if (!request.contact.email) {
-          <p class="email-warning">Bu müşterinin e-posta adresi bulunmuyor.</p>
-        }
-        <div class="field">
-          <label for="emailSubject">Konu</label>
-          <input id="emailSubject" type="text" formControlName="subject" />
-        </div>
-        <div class="field">
-          <label for="emailBody">Mesaj</label>
-          <textarea id="emailBody" rows="7" formControlName="message"></textarea>
-        </div>
-        <label class="check">
-          <input type="checkbox" formControlName="includeQuote" />
-          Kaydedilen tutarı mesaja dahil et
-        </label>
-        <label class="confirm-check">
-          <input type="checkbox" formControlName="confirmed" />
-          <span>
-            Alıcıyı ve içeriği kontrol ettim; bu e-postanın şimdi gönderilmesini onaylıyorum.
-          </span>
-        </label>
-        @if (emailMessage()) {
-          <p class="action-message" role="status">{{ emailMessage() }}</p>
-        }
-        <button
-          type="submit"
-          class="button primary"
-          [disabled]="sending() || !request.contact.email"
-        >
-          {{ sending() ? 'Gönderiliyor…' : 'Müşteriye e-posta gönder' }}
-        </button>
-        @if (request.customer_email_sent_at) {
-          <small class="last-sent">
-            Son gönderim: {{ request.customer_email_sent_at | date: 'dd.MM.yyyy HH:mm' }}
-          </small>
-        }
-      </form>
+      <fieldset appPermission="requests.email">
+        <form class="panel email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">
+          <div class="panel-title">
+            <h3>Müşteriye e-posta</h3>
+            <span>Açık gönderim eylemi</span>
+          </div>
+          @if (!request.contact.email) {
+            <p class="email-warning">Bu müşterinin e-posta adresi bulunmuyor.</p>
+          }
+          <div class="field">
+            <label for="emailSubject">Konu</label>
+            <input id="emailSubject" type="text" formControlName="subject" />
+          </div>
+          <div class="field">
+            <label for="emailBody">Mesaj</label>
+            <textarea id="emailBody" rows="7" formControlName="message"></textarea>
+          </div>
+          <label class="check">
+            <input type="checkbox" formControlName="includeQuote" />
+            Kaydedilen tutarı mesaja dahil et
+          </label>
+          <label class="confirm-check">
+            <input type="checkbox" formControlName="confirmed" />
+            <span>
+              Alıcıyı ve içeriği kontrol ettim; bu e-postanın şimdi gönderilmesini onaylıyorum.
+            </span>
+          </label>
+          @if (emailMessage()) {
+            <p class="action-message" role="status">{{ emailMessage() }}</p>
+          }
+          <button
+            type="submit"
+            class="button primary"
+            [disabled]="sending() || !request.contact.email"
+          >
+            {{ sending() ? 'Gönderiliyor…' : 'Müşteriye e-posta gönder' }}
+          </button>
+          @if (request.customer_email_sent_at) {
+            <small class="last-sent">
+              Son gönderim: {{ request.customer_email_sent_at | date: 'dd.MM.yyyy HH:mm' }}
+            </small>
+          }
+        </form>
+      </fieldset>
     </aside>
   </div>
 }

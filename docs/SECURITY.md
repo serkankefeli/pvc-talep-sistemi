@@ -13,8 +13,13 @@ girmemelidir.
 2. Public fiyat hesaplama ve public talep detay uç noktası yoktur.
 3. Admin uçlarının tamamı varsayılan olarak yetkisiz erişimi reddeder.
 4. Yönetici parolası düz metin olarak saklanmaz; Argon2id hash kullanılır.
-5. Yönetici erişim anahtarı kısa ömürlüdür ve frontend kalıcı depolamada
-   tutulmaz.
+5. Yönetici erişim anahtarı kısa ömürlüdür. Aynı sekmede yenilemeyi desteklemek
+   için bitiş zamanı ile `sessionStorage` içinde tutulur; `localStorage` veya
+   parola saklama kullanılmaz. Yenilemede sunucu kimliği ve token sürümünü
+   doğrular. Çıkış/süre sonu kaydı temizler; yenileme süreyi uzatmaz. Sekme
+   kurtarma veriyi geri getirebildiğinden ortak cihazda güvenli çıkış gerekir.
+   Bu depolama JavaScript tarafından okunabilir; XSS/CSP/HTTPS korumaları
+   gereklidir ve HttpOnly çerezli oturumla aynı güvenlik özelliğine sahip değildir.
 6. CORS yalnız ortam değişkenindeki kesin HTTPS adreslerine izin verir;
    joker (`*`) kullanılmaz.
 7. Talep numarası veritabanı sıra numarasını açığa çıkarmaz.
@@ -33,6 +38,10 @@ girmemelidir.
     reddedilir.
 15. Katalog silme işlemi fiziksel silme değil yayından kaldırmadır. Geçmiş
     talepler katalog değişikliğinden etkilenmez.
+16. Çalışan erişimi ekran ve işlem bazlı yetkilerle sınırlandırılır. Menü
+    gizlemek tek başına güvenlik kontrolü sayılmaz; her admin API isteği güncel
+    kullanıcı kaydından yetkiyi yeniden doğrular. Tanımsız yeni admin uçları
+    varsayılan olarak yalnız sistem yöneticisine açıktır.
 
 ## Rakip kaynaklı sahte talep
 

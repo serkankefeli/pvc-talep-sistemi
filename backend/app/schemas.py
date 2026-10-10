@@ -20,6 +20,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from .permissions import normalize_permissions
 
 
 class StrictModel(BaseModel):
@@ -474,6 +475,7 @@ class AdminTokenResponse(StrictModel):
     username: str
     display_name: str
     is_superuser: bool
+    permissions: list[str] = Field(default_factory=list)
 
 
 class AdminUserResponse(StrictModel):
@@ -482,6 +484,7 @@ class AdminUserResponse(StrictModel):
     display_name: str
     is_active: bool
     is_superuser: bool
+    permissions: list[str] = Field(default_factory=list)
     last_login_at: datetime | None
     password_changed_at: datetime
     created_at: datetime
@@ -497,12 +500,24 @@ class AdminUserCreate(StrictModel):
     display_name: str = Field(min_length=2, max_length=120)
     password: str = Field(min_length=12, max_length=512)
     is_superuser: bool = False
+    permissions: list[StrictStr] = Field(default_factory=list, max_length=32)
+
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, value: list[str]) -> list[str]:
+        return normalize_permissions(value)
 
 
 class AdminUserUpdate(StrictModel):
     display_name: str | None = Field(default=None, min_length=2, max_length=120)
     is_active: bool | None = None
     is_superuser: bool | None = None
+    permissions: list[StrictStr] | None = Field(default=None, max_length=32)
+
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, value: list[str] | None) -> list[str] | None:
+        return normalize_permissions(value) if value is not None else None
 
     @model_validator(mode="after")
     def require_change(self) -> "AdminUserUpdate":
@@ -510,6 +525,7 @@ class AdminUserUpdate(StrictModel):
             self.display_name is None
             and self.is_active is None
             and self.is_superuser is None
+            and self.permissions is None
         ):
             raise ValueError("At least one user field must be supplied")
         return self

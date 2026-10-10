@@ -1,0 +1,164 @@
+<section class="purchase-page">
+  <p><a routerLink="/">← Tanıtım sayfası</a></p>
+  <h1>Yıllık yazılım aboneliği satın al</h1>
+  <p>
+    Firmanıza özel marka ve sayfa alanı. Mevcut web sitenize entegre veya firmanıza ayrılan bağlantı
+    üzerinden bağımsız kullanım.
+  </p>
+  <p class="notice">
+    Bu satın alma doğrama ürünleri için değil, yazılım aboneliği içindir. Firma sayfası ve
+    entegrasyon kurulumu ödeme doğrulamasından sonra hizmet yöneticisiyle planlanır. Ödeme
+    bağlantısını açmak otomatik hesap oluşturmaz.
+  </p>
+  @if (offer(); as data) {
+    @if (data.available) {
+      <div class="annual-offer">
+        <p>Bir takvim yılı</p>
+        <h2>{{ data.total_amount }} TL <small>/ yıl</small></h2>
+        <p>Vergiler dahil toplam bedel · Otomatik tahsilat / yenileme yok</p>
+        <p class="legal-body">{{ data.service_description }}</p>
+      </div>
+      @if (data.seller_name || data.seller_address) {
+        <p>
+          {{ data.seller_name }}{{ data.seller_name && data.seller_address ? ' · ' : ''
+          }}{{ data.seller_address }}
+        </p>
+      }
+      @if (data.support_email || data.support_phone) {
+        <p>
+          {{ data.support_email }}{{ data.support_email && data.support_phone ? ' · ' : ''
+          }}{{ data.support_phone }}
+        </p>
+      }
+      @if (data.payment_enabled) {
+        <form #purchaseForm="ngForm" (ngSubmit)="prepare()" class="commerce-form">
+          <fieldset [disabled]="busy()">
+            <legend>Firma ve kullanım bilgileri</legend>
+            <label
+              >Ad soyad<input
+                name="full-name"
+                [(ngModel)]="fullName"
+                (ngModelChange)="invalidate()"
+                required
+                minlength="2"
+                maxlength="120"
+                autocomplete="name"
+            /></label>
+            <label
+              >Firma adı<input
+                name="company-name"
+                [(ngModel)]="companyName"
+                (ngModelChange)="invalidate()"
+                required
+                minlength="2"
+                maxlength="160"
+                autocomplete="organization"
+            /></label>
+            <label
+              >E-posta<input
+                name="email"
+                type="email"
+                email
+                [(ngModel)]="email"
+                (ngModelChange)="invalidate()"
+                required
+                maxlength="254"
+                autocomplete="email"
+            /></label>
+            <label
+              >Kullanım biçimi<select
+                name="usage-mode"
+                [(ngModel)]="usageMode"
+                (ngModelChange)="invalidate()"
+                required
+              >
+                <option value="" disabled>Seçin</option>
+                <option value="integrated">Mevcut web siteme entegre</option>
+                <option value="standalone">Bağımsız firma bağlantısı</option>
+              </select></label
+            >
+            <p>
+              Bilgileriniz abonelik başvurusu ve kurulum iletişimi için kaydedilir.
+              <a routerLink="/gizlilik-politikasi" target="_blank" rel="noopener"
+                >Gizlilik / KVKK aydınlatmasını okuyun.</a
+              >
+            </p>
+            <label class="check"
+              ><input
+                name="refund"
+                type="checkbox"
+                [(ngModel)]="refund"
+                (ngModelChange)="invalidate()"
+              /><span
+                ><a routerLink="/iptal-iade" target="_blank" rel="noopener"
+                  >İptal ve iade koşullarını</a
+                >
+                okudum.</span
+              ></label
+            >
+            <label class="check"
+              ><input
+                name="contract"
+                type="checkbox"
+                [(ngModel)]="contract"
+                (ngModelChange)="invalidate()"
+              /><span
+                ><a routerLink="/mesafeli-satis" target="_blank" rel="noopener"
+                  >Mesafeli satış sözleşmesini</a
+                >
+                okudum ve kabul ediyorum.</span
+              ></label
+            >
+            <button
+              type="submit"
+              [disabled]="purchaseForm.invalid || !refund || !contract || busy() || !!link()"
+            >
+              {{ busy() ? 'Hazırlanıyor…' : 'iyzico ödeme bağlantısını hazırla' }}
+            </button>
+          </fieldset>
+        </form>
+        @if (link(); as payment) {
+          <div class="notice">
+            <p>
+              <a
+                class="payment-action"
+                [href]="payment.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                >iyzico güvenli ödeme sayfasına git →</a
+              >
+            </p>
+            <p>Başvuru referansı: {{ payment.reference }}</p>
+            <p>
+              Bu kayıt ödeme dekontu değildir. Referansı saklayın; hizmet yöneticisi ödeme sonucunu
+              doğrulayıp firmanızın sayfasını ve yıllık aboneliğini açar.
+            </p>
+          </div>
+        }
+        <img class="payment-logo" src="/payments/iyzico-pay.svg" alt="iyzico ile Öde" />
+      } @else {
+        <p class="notice">
+          Online ödeme henüz açılmadı. Abonelik ve kurulum için hizmet yöneticisiyle iletişime
+          geçin.
+        </p>
+        <a routerLink="/" fragment="iletisim">İletişim bilgilerine git →</a>
+      }
+    } @else {
+      <p class="notice">
+        Yıllık abonelik fiyatı henüz yayımlanmadı. Abonelik ve kurulum bilgisi için bizimle
+        iletişime geçin.
+      </p>
+      <a routerLink="/" fragment="iletisim">İletişim bilgilerine git →</a>
+    }
+  } @else if (!message()) {
+    <p>Abonelik bilgileri yükleniyor…</p>
+  }
+  @if (message()) {
+    <p role="alert">{{ message() }}</p>
+    <button type="button" (click)="load()">Yeniden yükle</button>
+  }
+  <p>
+    Mevcut üyeyseniz
+    <a routerLink="/admin/odeme">giriş yaparak aboneliğinizi yenileyebilirsiniz.</a>
+  </p>
+</section>

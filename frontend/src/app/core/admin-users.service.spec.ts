@@ -32,6 +32,19 @@ describe('AdminUsersService contract', () => {
     expect(request.request.method).toBe('GET');
     request.flush({});
   });
+  it('loads the server permission catalog', () => {
+    service.permissions().subscribe();
+    const request = http.expectOne('https://api.example.test/api/v1/admin/users/permissions');
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+  });
+  it('updates a user with explicit permissions including an empty revoke-all list', () => {
+    service.update(42, { permissions: [] }).subscribe();
+    const request = http.expectOne('https://api.example.test/api/v1/admin/users/42');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ permissions: [] });
+    request.flush({});
+  });
 
   it('creates a separate administrator account', () => {
     service
@@ -50,9 +63,7 @@ describe('AdminUsersService contract', () => {
 
   it('uses the current-password endpoint for the signed-in user', () => {
     service.changeOwnPassword('old password', 'new password 123').subscribe();
-    const request = http.expectOne(
-      'https://api.example.test/api/v1/admin/users/me/password',
-    );
+    const request = http.expectOne('https://api.example.test/api/v1/admin/users/me/password');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({
       current_password: 'old password',

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 
 from .config import Settings
 from .models import AdminUser
+from .permissions import effective_permissions, required_permission
 
 
 _password_hash = PasswordHash.recommended()
@@ -28,6 +29,7 @@ class AdminPrincipal:
     display_name: str
     is_superuser: bool
     token_version: int
+    permissions: tuple[str, ...] = ()
 
 
 def hash_password(password: str) -> str:
@@ -50,6 +52,7 @@ def create_access_token(settings: Settings, user: AdminUser) -> str:
         "sub": user.username,
         "uid": user.id,
         "ver": user.token_version,
+        "tenant": settings.tenant_slug,
         "type": "admin",
         "iss": settings.jwt_issuer,
         "iat": now,
@@ -65,6 +68,7 @@ def create_access_token(settings: Settings, user: AdminUser) -> str:
 
 def build_admin_dependency(settings: Settings, engine: Engine):
     def require_admin(
+        request: Request,
         credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     ) -> AdminPrincipal:
         authentication_error = HTTPException(
@@ -86,6 +90,7 @@ def build_admin_dependency(settings: Settings, engine: Engine):
                         "sub",
                         "uid",
                         "ver",
+                        "tenant",
                         "type",
                         "iss",
                         "iat",
@@ -97,7 +102,7 @@ def build_admin_dependency(settings: Settings, engine: Engine):
         except jwt.PyJWTError as exc:
             raise authentication_error from exc
 
-        if claims.get("type") != "admin":
+        if claims.get("type") != "admin" or claims.get("tenant") != settings.tenant_slug:
             raise authentication_error
         try:
             user_id = int(claims["uid"])
@@ -113,12 +118,17 @@ def build_admin_dependency(settings: Settings, engine: Engine):
             ).first()
         if user is None or not user.is_active or user.token_version != token_version:
             raise authentication_error
+        permissions = effective_permissions(user)
+        required = required_permission(request.method, request.url.path)
+        if required is not None and not user.is_superuser and required not in permissions:
+            raise HTTPException(status_code=403, detail="PERMISSION_DENIED")
         return AdminPrincipal(
             id=user.id,
             username=user.username,
             display_name=user.display_name,
             is_superuser=user.is_superuser,
             token_version=user.token_version,
+            permissions=permissions,
         )
 
     return require_admin

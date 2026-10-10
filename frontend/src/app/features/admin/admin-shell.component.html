@@ -13,10 +13,32 @@
       <h1>Talep merkezi</h1>
     </div>
     <nav aria-label="Yönetim menüsü">
-      <a routerLink="/admin/talepler" routerLinkActive="active">Talep Merkezi</a>
-      <a routerLink="/admin/katalog" routerLinkActive="active">Form kataloğu</a>
-      <a routerLink="/admin/marka" routerLinkActive="active">Marka / Logo</a>
-      <a routerLink="/admin/kullanicilar" routerLinkActive="active">Kullanıcılar</a>
+      @if (auth.can('requests.view')) {
+        <a routerLink="/admin/talepler" routerLinkActive="active">Talep Merkezi</a>
+      }
+      @if (auth.can('landing.view')) {
+        <a routerLink="/admin/tanitim" routerLinkActive="active">Tanıtım sayfası</a>
+      }
+      @if (auth.can('catalog.view')) {
+        <a routerLink="/admin/katalog" routerLinkActive="active">Form kataloğu</a>
+      }
+      @if (auth.can('branding.view')) {
+        <a routerLink="/admin/marka" routerLinkActive="active">Marka / Logo</a>
+      }
+      <a routerLink="/admin/kullanicilar" routerLinkActive="active">{{
+        auth.currentIdentity()?.is_superuser ? 'Kullanıcılar / Yetkiler' : 'Hesabım / Parolam'
+      }}</a>
+      @if (auth.can('company.view')) {
+        <a routerLink="/admin/firma" routerLinkActive="active">Firma / Paket</a>
+      }
+      @if (auth.can('commerce.view')) {
+        <a routerLink="/admin/sozlesmeler" routerLinkActive="active"
+          >Sözleşmeler / Ödeme ayarları</a
+        >
+      }
+      @if (auth.can('billing.view')) {
+        <a routerLink="/admin/odeme" routerLinkActive="active">Abonelik ödemesi</a>
+      }
     </nav>
     <button type="button" class="logout" (click)="logout()">Güvenli çıkış</button>
   </aside>

@@ -1,0 +1,99 @@
+:host {
+  display: block;
+}
+.page-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+h1 {
+  margin: 0.5rem 0;
+}
+h2 {
+  font-size: 1.2rem;
+  margin: 0 0 0.75rem;
+}
+p {
+  color: var(--muted-strong);
+  line-height: 1.6;
+}
+.identity,
+.usage-card,
+.note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.identity h2 {
+  margin: 0.5rem 0;
+}
+.identity p {
+  margin: 0;
+}
+.badge {
+  color: var(--forest-strong);
+  background: var(--forest-soft);
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-weight: 700;
+}
+.trial {
+  flex-basis: 100%;
+}
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.value {
+  color: var(--ink);
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0.5rem 0;
+}
+.value span {
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 500;
+}
+progress {
+  width: 100%;
+  height: 0.8rem;
+  accent-color: var(--brand-primary);
+}
+.error,
+.warning {
+  color: var(--danger);
+}
+a {
+  color: var(--forest-strong);
+  font-weight: 700;
+}
+.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 0.7rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .usage-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    align-items: flex-start;
+  }
+}

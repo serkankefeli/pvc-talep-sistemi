@@ -17,8 +17,9 @@
 
   <nav aria-label="Ana menü">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      Talep oluştur
+      Tanıtım
     </a>
+    <a routerLink="/talep-olustur" routerLinkActive="active"> Talep oluştur </a>
     <a routerLink="/admin">Yönetim</a>
     <button
       type="button"
@@ -38,5 +39,13 @@
 </main>
 
 <footer class="site-footer">
+  <div class="legal-links">
+    <a routerLink="/gizlilik-politikasi">Gizlilik / KVKK</a>
+    <a routerLink="/iptal-iade">İptal ve iade koşulları</a>
+    <a routerLink="/mesafeli-satis">Mesafeli satış sözleşmesi</a>
+    <a routerLink="/admin/odeme" class="payment-mark"
+      ><img src="/payments/iyzico-pay.svg" alt="iyzico ile Öde — abonelik ödemesi"
+    /></a>
+  </div>
   <p>Çizimler ön değerlendirme amaçlıdır. Kesin teknik uygunluk uzman kontrolüyle belirlenir.</p>
 </footer>

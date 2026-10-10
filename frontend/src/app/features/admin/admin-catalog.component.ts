@@ -10,6 +10,8 @@ import {
   Validators,
 } from '@angular/forms';
 import { AdminCatalogService } from '../../core/admin-catalog.service';
+import { AuthService } from '../../core/auth.service';
+import { PermissionFieldsetDirective } from '../../core/permission-fieldset.directive';
 import {
   AdminCatalogField,
   AdminCatalogOption,
@@ -133,12 +135,13 @@ const safeSectionImageUrls: ValidatorFn = (control: AbstractControl): Validation
 
 @Component({
   selector: 'app-admin-catalog',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, PermissionFieldsetDirective],
   templateUrl: './admin-catalog.component.html',
   styleUrl: './admin-catalog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminCatalogComponent {
+  readonly auth = inject(AuthService);
   private readonly api = inject(AdminCatalogService);
   private readonly fb = inject(NonNullableFormBuilder);
 

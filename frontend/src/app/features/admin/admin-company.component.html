@@ -1,0 +1,113 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">FİRMA HESABI</p>
+    <h1>Firma ve kullanım</h1>
+    <p>Firmanızın paketini, kullanıcı sayısını ve aylık talep kullanımını takip edin.</p>
+  </div>
+  <button type="button" class="secondary" [disabled]="loading()" (click)="reload()">Yenile</button>
+</header>
+@if (loading()) {
+  <p role="status">Firma bilgileri yükleniyor…</p>
+}
+@if (error()) {
+  <p class="error" role="alert">
+    Firma bilgileri yüklenemedi. Yeniden deneyin veya oturumunuzu kontrol edin.
+  </p>
+}
+@if (account(); as company) {
+  @if (company.access_mode === 'expired') {
+    <section class="note" role="alert">
+      <h2>Aboneliğiniz sona erdi</h2>
+      <p>
+        Hesabınıza giriş yapabilirsiniz; çizim, talep, katalog ve yönetim işlemleri yenileme
+        yapılana kadar kapalıdır. Verileriniz silinmez. Aboneliği yenilemek için hizmet
+        yöneticisiyle iletişime geçin.
+      </p>
+    </section>
+  }
+  <section class="identity" aria-label="Firma bilgileri">
+    <div>
+      <p class="eyebrow">{{ company.slug }}</p>
+      <h2>{{ company.name }}</h2>
+      <p>
+        {{ planLabel(company.plan) }} ·
+        {{ company.saas_enabled ? 'Çok firmalı altyapı' : 'Tek firma kurulumu' }}
+      </p>
+    </div>
+    <span class="badge">{{ company.status === 'active' ? 'Aktif' : 'Askıya alındı' }}</span>
+    @if (company.trial_ends_at) {
+      <p class="trial">Deneme bitişi: {{ company.trial_ends_at | date: 'dd.MM.yyyy HH:mm' }}</p>
+    }
+    @if (company.subscription_ends_at) {
+      <p class="trial">
+        Yıllık abonelik bitişi: {{ company.subscription_ends_at | date: 'dd.MM.yyyy HH:mm' }}
+      </p>
+      <p class="trial">Hatırlatma adresi: {{ company.subscription_email ?? 'Tanımlanmamış' }}</p>
+    }
+  </section>
+  <div class="usage-grid">
+    <section class="usage-card">
+      <h2>Aktif kullanıcılar</h2>
+      <p class="value">
+        {{ company.active_users }} <span>/ {{ company.seat_limit ?? 'Sınırsız' }}</span>
+      </p>
+      @if (company.seat_limit !== null) {
+        <progress
+          [value]="percent(company.active_users, company.seat_limit)"
+          max="100"
+          aria-label="Aktif kullanıcı kotası"
+        ></progress>
+        @if (company.active_users >= company.seat_limit) {
+          <p class="warning">
+            Kullanıcı sınırına ulaşıldı. Yeni kullanıcı için bir hesabı pasifleştirin veya paket
+            değişikliği isteyin.
+          </p>
+        }
+      }
+      <p>Yönetici dahil aktif hesaplar sayılır. Pasif hesaplar kotaya dahil değildir.</p>
+      @if (company.access_mode === 'active') {
+        <a routerLink="/admin/kullanicilar">Kullanıcıları yönet →</a>
+      }
+    </section>
+    <section class="usage-card">
+      <h2>Bu ayki talepler</h2>
+      <p class="value">
+        {{ company.requests_this_month }}
+        <span>/ {{ company.monthly_request_limit ?? 'Sınırsız' }}</span>
+      </p>
+      @if (company.monthly_request_limit !== null) {
+        <progress
+          [value]="percent(company.requests_this_month, company.monthly_request_limit)"
+          max="100"
+          aria-label="Aylık talep kotası"
+        ></progress>
+        @if (company.requests_this_month >= company.monthly_request_limit) {
+          <p class="warning">
+            Aylık talep sınırına ulaşıldı. Yeni talepler için paket değişikliği gerekiyor.
+          </p>
+        }
+      }
+      <p>
+        {{ company.usage_month }} dönemi · Sayaç her ayın başında UTC saatine göre yenilenir. Birden
+        fazla çizim içeren talep bir kez sayılır.
+      </p>
+      @if (company.access_mode === 'active') {
+        <a routerLink="/admin/talepler">Talepleri incele →</a>
+      }
+    </section>
+  </div>
+  <section class="note">
+    <h2>Hesap ve paket yönetimi</h2>
+    <p>
+      Paket değişikliği ve yeni firma kurulumu hizmet yöneticisi tarafından yapılır. Ödeme
+      doğrulandıktan sonra abonelik yenilenir; otomatik tahsilat yapılmaz.
+    </p>
+    <p><a routerLink="/admin/odeme">Abonelik yenileme / iyzico Link →</a></p>
+    @if (company.access_mode === 'active') {
+      <p>
+        Logo ve firma görünümünü <a routerLink="/admin/marka">Marka / Logo</a> bölümünden
+        düzenleyebilirsiniz.
+      </p>
+    }
+  </section>
+}

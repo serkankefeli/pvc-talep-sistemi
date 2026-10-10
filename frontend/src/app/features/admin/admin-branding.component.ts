@@ -3,13 +3,14 @@ import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@ang
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { SiteBrandingService } from '../../core/site-branding.service';
+import { PermissionFieldsetDirective } from '../../core/permission-fieldset.directive';
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const ACCEPTED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 @Component({
   selector: 'app-admin-branding',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, PermissionFieldsetDirective],
   templateUrl: './admin-branding.component.html',
   styleUrl: './admin-branding.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

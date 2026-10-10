@@ -1,0 +1,425 @@
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">İÇERİK YÖNETİMİ</p>
+    <h1>Tanıtım sayfası</h1>
+    <p>Metinleri, görselleri, bölüm sırasını ve bağlantıları yönetin.</p>
+  </div>
+  <button type="button" class="secondary" (click)="preview.set(!preview())">
+    {{ preview() ? 'Düzenlemeye dön' : 'Kaydetmeden ön izle' }}
+  </button>
+</header>
+@if (message()) {
+  <p class="status" role="status">{{ message() }}</p>
+}
+@if (page(); as data) {
+  @if (preview()) {
+    <div class="preview-note">
+      Kaydedilmemiş içerik ön izlemesi. Butonlar gerçek ekranlara gider.
+    </div>
+    <app-landing-view [page]="data" />
+  } @else {
+    <fieldset appPermission="landing.edit">
+      <form (ngSubmit)="save()" class="editor">
+        <div class="publish-bar">
+          <label class="check"
+            ><input type="checkbox" name="published" [(ngModel)]="data.published" /> Tanıtım sayfası
+            yayında</label
+          >
+          <div>
+            <button type="button" class="secondary" (click)="reload()" [disabled]="busy()">
+              Yeniden yükle</button
+            ><button type="submit" [disabled]="busy()">
+              {{ busy() ? 'İşleniyor…' : 'Değişiklikleri kaydet' }}
+            </button>
+          </div>
+        </div>
+        <fieldset [disabled]="busy()">
+          <legend>Açılış alanı</legend>
+          <label class="check"
+            ><input type="checkbox" name="purchase-visible" [(ngModel)]="data.purchase_visible" />
+            Satın al butonunu ve yıllık fiyat alanını göster</label
+          >
+          <label
+            >Satın al butonu metni<input
+              name="purchase-label"
+              [(ngModel)]="data.purchase_label"
+              maxlength="160"
+          /></label>
+          <p class="hint">
+            Yıllık fiyat Sözleşmeler / Ödeme ayarları ekranından yönetilir; doğrama tekliflerinden
+            tamamen ayrıdır.
+          </p>
+          <label
+            >Üst etiket<input name="eyebrow" [(ngModel)]="data.eyebrow" maxlength="160"
+          /></label>
+          <label
+            >Ana başlık<input
+              name="hero-title"
+              [(ngModel)]="data.hero_title"
+              maxlength="200"
+              required
+          /></label>
+          <label
+            >Açıklama<textarea
+              name="hero-description"
+              [(ngModel)]="data.hero_description"
+              maxlength="3000"
+            ></textarea>
+          </label>
+          <div class="two-col">
+            <label
+              >Ana buton metni<input
+                name="primary-label"
+                [(ngModel)]="data.primary_label"
+                maxlength="160" /></label
+            ><label
+              >Buton hedefi<select name="primary-target" [(ngModel)]="data.primary_target">
+                @for (target of targets; track target.value) {
+                  <option [value]="target.value">{{ target.label }}</option>
+                }
+              </select></label
+            >
+            <label
+              >İkinci buton metni<input
+                name="secondary-label"
+                [(ngModel)]="data.secondary_label"
+                maxlength="160" /></label
+            ><label
+              >Buton hedefi<select name="secondary-target" [(ngModel)]="data.secondary_target">
+                @for (target of targets; track target.value) {
+                  <option [value]="target.value">{{ target.label }}</option>
+                }
+              </select></label
+            >
+          </div>
+          <label
+            >Kapak görseli adresi<input
+              name="hero-image"
+              [(ngModel)]="data.hero_image_url"
+              maxlength="500"
+              placeholder="HTTPS görsel adresi veya dosya yükleyin"
+          /></label>
+          <label
+            >Görsel açıklaması<input
+              name="hero-alt"
+              [(ngModel)]="data.hero_image_alt"
+              maxlength="160"
+          /></label>
+          <label
+            >Kapak görseli yükle (PNG / JPEG / WebP, en fazla 2 MB)<input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              (change)="upload($event)"
+          /></label>
+          <p class="hint">
+            Görsel adresini boş bırakırsanız ölçülü pencere illüstrasyonu gösterilir. Yüklenen
+            tanıtım görselleri bağlantıyı bilenlere açıktır; gizli veya kişisel dosya yüklemeyin.
+          </p>
+          <h3>Kısa vurgu etiketleri</h3>
+          @for (badge of data.badges; track $index) {
+            <div class="list-row">
+              <input
+                [name]="'badge-' + $index"
+                [(ngModel)]="data.badges[$index]"
+                maxlength="160"
+                aria-label="Vurgu etiketi"
+              /><button type="button" class="secondary" (click)="data.badges.splice($index, 1)">
+                Kaldır
+              </button>
+            </div>
+          }
+          <button
+            type="button"
+            class="secondary"
+            [disabled]="data.badges.length >= 8"
+            (click)="data.badges.push('Yeni etiket')"
+          >
+            Etiket ekle
+          </button>
+        </fieldset>
+        <fieldset [disabled]="busy()">
+          <legend>Bölümler ve sıralama</legend>
+          @for (section of data.sections; track section.key) {
+            <article class="section-editor">
+              <header>
+                <strong>{{ sectionLabels[section.key] }}</strong>
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="secondary"
+                    [disabled]="$first"
+                    (click)="move(data.sections, $index, -1)"
+                    aria-label="Bölümü yukarı taşı"
+                  >
+                    ↑</button
+                  ><button
+                    type="button"
+                    class="secondary"
+                    [disabled]="$last"
+                    (click)="move(data.sections, $index, 1)"
+                    aria-label="Bölümü aşağı taşı"
+                  >
+                    ↓</button
+                  ><button
+                    type="button"
+                    class="secondary"
+                    (click)="data.sections.splice($index, 1)"
+                  >
+                    Bölümü kaldır
+                  </button>
+                </div>
+              </header>
+              <label class="check"
+                ><input
+                  type="checkbox"
+                  [name]="section.key + '-enabled'"
+                  [(ngModel)]="section.enabled"
+                />
+                Bölümü göster</label
+              >
+              <label
+                >Bölüm başlığı<input
+                  [name]="section.key + '-title'"
+                  [(ngModel)]="section.title"
+                  maxlength="160"
+              /></label>
+              <label
+                >Bölüm açıklaması<textarea
+                  [name]="section.key + '-description'"
+                  [(ngModel)]="section.description"
+                  maxlength="3000"
+                ></textarea>
+              </label>
+              @if (
+                section.key === 'features' ||
+                section.key === 'deployment' ||
+                section.key === 'process' ||
+                section.key === 'gallery'
+              ) {
+                @for (card of cards(section.key); track $index) {
+                  <div class="card-editor">
+                    <header>
+                      <strong>Kart {{ $index + 1 }}</strong>
+                      <div class="row-actions">
+                        <button
+                          type="button"
+                          class="secondary"
+                          [disabled]="$first"
+                          (click)="move(cards(section.key), $index, -1)"
+                          aria-label="Kartı yukarı taşı"
+                        >
+                          ↑</button
+                        ><button
+                          type="button"
+                          class="secondary"
+                          [disabled]="$last"
+                          (click)="move(cards(section.key), $index, 1)"
+                          aria-label="Kartı aşağı taşı"
+                        >
+                          ↓</button
+                        ><button
+                          type="button"
+                          class="secondary"
+                          (click)="cards(section.key).splice($index, 1)"
+                        >
+                          Kaldır
+                        </button>
+                      </div>
+                    </header>
+                    <label
+                      >Kart başlığı<input
+                        [name]="section.key + '-card-title-' + $index"
+                        [(ngModel)]="card.title"
+                        maxlength="160"
+                    /></label>
+                    <label
+                      >Açıklama<textarea
+                        [name]="section.key + '-card-description-' + $index"
+                        [(ngModel)]="card.description"
+                        maxlength="3000"
+                      ></textarea>
+                    </label>
+                    <div class="two-col">
+                      <label
+                        >Görsel adresi<input
+                          [name]="section.key + '-card-image-' + $index"
+                          [(ngModel)]="card.image_url"
+                          maxlength="500" /></label
+                      ><label
+                        >Görsel açıklaması<input
+                          [name]="section.key + '-card-alt-' + $index"
+                          [(ngModel)]="card.image_alt"
+                          maxlength="160"
+                      /></label>
+                    </div>
+                    <label
+                      >Görsel yükle<input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        (change)="upload($event, card)"
+                    /></label>
+                  </div>
+                }
+                <button
+                  type="button"
+                  class="secondary"
+                  [disabled]="
+                    cards(section.key).length >=
+                    (section.key === 'deployment' ? 8 : section.key === 'process' ? 10 : 16)
+                  "
+                  (click)="addCard(section.key)"
+                >
+                  Kart / adım ekle
+                </button>
+              }
+              @if (section.key === 'faq') {
+                @for (item of data.faq; track $index) {
+                  <div class="card-editor">
+                    <header>
+                      <strong>Soru {{ $index + 1 }}</strong>
+                      <div class="row-actions">
+                        <button
+                          type="button"
+                          class="secondary"
+                          [disabled]="$first"
+                          (click)="move(data.faq, $index, -1)"
+                          aria-label="Soruyu yukarı taşı"
+                        >
+                          ↑</button
+                        ><button
+                          type="button"
+                          class="secondary"
+                          [disabled]="$last"
+                          (click)="move(data.faq, $index, 1)"
+                          aria-label="Soruyu aşağı taşı"
+                        >
+                          ↓</button
+                        ><button
+                          type="button"
+                          class="secondary"
+                          (click)="data.faq.splice($index, 1)"
+                        >
+                          Kaldır
+                        </button>
+                      </div>
+                    </header>
+                    <label
+                      >Soru<input
+                        [name]="'faq-question-' + $index"
+                        [(ngModel)]="item.question"
+                        maxlength="160" /></label
+                    ><label
+                      >Cevap<textarea
+                        [name]="'faq-answer-' + $index"
+                        [(ngModel)]="item.answer"
+                        maxlength="3000"
+                      ></textarea>
+                    </label>
+                  </div>
+                }
+                <button
+                  type="button"
+                  class="secondary"
+                  [disabled]="data.faq.length >= 20"
+                  (click)="data.faq.push({ question: 'Yeni soru', answer: '' })"
+                >
+                  Soru ekle
+                </button>
+              }
+              @if (section.key === 'contact') {
+                <label
+                  >İletişim başlığı<input
+                    name="contact-title"
+                    [(ngModel)]="data.contact_title"
+                    maxlength="160"
+                /></label>
+                <label
+                  >İletişim açıklaması<textarea
+                    name="contact-description"
+                    [(ngModel)]="data.contact_description"
+                    maxlength="3000"
+                  ></textarea>
+                </label>
+                <div class="two-col">
+                  <label
+                    >E-posta<input
+                      name="contact-email"
+                      type="email"
+                      [(ngModel)]="data.contact_email" /></label
+                  ><label
+                    >Telefon<input
+                      name="contact-phone"
+                      [(ngModel)]="data.contact_phone"
+                      maxlength="40"
+                  /></label>
+                </div>
+                <label
+                  >Adres<textarea
+                    name="contact-address"
+                    [(ngModel)]="data.contact_address"
+                    maxlength="3000"
+                  ></textarea>
+                </label>
+              }
+            </article>
+          }
+          <div class="list-row">
+            <select name="new-section" [(ngModel)]="newSection" aria-label="Eklenecek bölüm">
+              @for (key of keys; track key) {
+                <option [value]="key">{{ sectionLabels[key] }}</option>
+              }</select
+            ><button type="button" class="secondary" (click)="addSection()">Bölüm ekle</button>
+          </div>
+          <p class="hint">
+            Bölümü kaldırmak içerik kartlarını silmez; tekrar eklediğinizde kartlar korunur.
+          </p>
+        </fieldset>
+        <fieldset [disabled]="busy()">
+          <legend>Sayfa sonu çağrısı</legend>
+          <label
+            >Başlık<input
+              name="closing-title"
+              [(ngModel)]="data.closing_title"
+              maxlength="160" /></label
+          ><label
+            >Açıklama<textarea
+              name="closing-description"
+              [(ngModel)]="data.closing_description"
+              maxlength="3000"
+            ></textarea>
+          </label>
+          <div class="two-col">
+            <label
+              >Buton metni<input
+                name="closing-label"
+                [(ngModel)]="data.closing_label"
+                maxlength="160" /></label
+            ><label
+              >Buton hedefi<select name="closing-target" [(ngModel)]="data.closing_target">
+                @for (target of targets; track target.value) {
+                  <option [value]="target.value">{{ target.label }}</option>
+                }
+              </select></label
+            >
+          </div>
+        </fieldset>
+        <fieldset [disabled]="busy()">
+          <legend>Arama motoru bilgileri</legend>
+          <label
+            >Sayfa başlığı<input
+              name="seo-title"
+              [(ngModel)]="data.seo_title"
+              maxlength="160" /></label
+          ><label
+            >Sayfa açıklaması<textarea
+              name="seo-description"
+              [(ngModel)]="data.seo_description"
+              maxlength="320"
+            ></textarea>
+          </label>
+        </fieldset>
+        <button type="submit" [disabled]="busy()">Değişiklikleri kaydet</button>
+      </form>
+    </fieldset>
+  }
+}

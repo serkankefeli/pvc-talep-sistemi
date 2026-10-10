@@ -14,11 +14,19 @@ import {
   STATUS_LABELS,
 } from '../../core/request.models';
 import { RequestApiService } from '../../core/request-api.service';
+import { PermissionFieldsetDirective } from '../../core/permission-fieldset.directive';
 import { ProductPreviewComponent } from '../../shared/product-preview.component';
 
 @Component({
   selector: 'app-admin-request-detail',
-  imports: [DatePipe, KeyValuePipe, ProductPreviewComponent, ReactiveFormsModule, RouterLink],
+  imports: [
+    DatePipe,
+    KeyValuePipe,
+    ProductPreviewComponent,
+    ReactiveFormsModule,
+    RouterLink,
+    PermissionFieldsetDirective,
+  ],
   templateUrl: './admin-request-detail.component.html',
   styleUrl: './admin-request-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -141,18 +149,20 @@ export class AdminRequestDetailComponent {
     }
     this.revisionSaving.set(true);
     this.revisionMessage.set(null);
-    this.api.createRevision(this.requestId, this.revisionForm.controls.note.value.trim()).subscribe({
-      next: (revision) => {
-        this.revisions.update((revisions) => [revision, ...revisions]);
-        this.revisionForm.reset();
-        this.revisionMessage.set(`Revizyon ${revision.revision_number} oluşturuldu.`);
-        this.revisionSaving.set(false);
-      },
-      error: () => {
-        this.revisionMessage.set('Revizyon oluşturulamadı.');
-        this.revisionSaving.set(false);
-      },
-    });
+    this.api
+      .createRevision(this.requestId, this.revisionForm.controls.note.value.trim())
+      .subscribe({
+        next: (revision) => {
+          this.revisions.update((revisions) => [revision, ...revisions]);
+          this.revisionForm.reset();
+          this.revisionMessage.set(`Revizyon ${revision.revision_number} oluşturuldu.`);
+          this.revisionSaving.set(false);
+        },
+        error: () => {
+          this.revisionMessage.set('Revizyon oluşturulamadı.');
+          this.revisionSaving.set(false);
+        },
+      });
   }
 
   toggleFavorite(): void {

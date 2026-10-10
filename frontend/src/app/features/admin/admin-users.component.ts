@@ -3,14 +3,15 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
-import { AdminUsersService } from '../../core/admin-users.service';
+import { finalize, forkJoin } from 'rxjs';
+import { AdminUsersService, PermissionGroup } from '../../core/admin-users.service';
 import { AuthService } from '../../core/auth.service';
 import { AdminUser, AdminUserUpdate } from '../../core/request.models';
+import { PermissionMatrixComponent } from './permission-matrix.component';
 
 @Component({
   selector: 'app-admin-users',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule, PermissionMatrixComponent],
   templateUrl: './admin-users.component.html',
   styleUrl: './admin-users.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +26,10 @@ export class AdminUsersComponent implements OnInit {
   readonly users = signal<readonly AdminUser[]>([]);
   readonly resetTarget = signal<AdminUser | null>(null);
   readonly editTarget = signal<AdminUser | null>(null);
+  readonly permissionTarget = signal<AdminUser | null>(null);
+  readonly permissionGroups = signal<readonly PermissionGroup[]>([]);
+  readonly createPermissions = signal<readonly string[]>([]);
+  readonly selectedPermissions = signal<readonly string[]>([]);
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
@@ -84,11 +89,13 @@ export class AdminUsersComponent implements OnInit {
   }
 
   loadUsers(): void {
-    this.api
-      .list()
+    forkJoin({ users: this.api.list(), groups: this.api.permissions() })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (users) => this.users.set(users),
+        next: ({ users, groups }) => {
+          this.users.set(users);
+          this.permissionGroups.set(groups);
+        },
         error: (error: unknown) => this.error.set(this.errorMessage(error)),
       });
   }
@@ -109,11 +116,13 @@ export class AdminUsersComponent implements OnInit {
         display_name: value.display_name,
         password: value.password,
         is_superuser: value.is_superuser,
+        permissions: this.createPermissions(),
       })
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: (user) => {
           this.users.update((users) => [...users, user]);
+          this.createPermissions.set([]);
           this.createForm.reset({
             username: '',
             display_name: '',
@@ -139,6 +148,34 @@ export class AdminUsersComponent implements OnInit {
     this.clearFeedback();
     this.editTarget.set(user);
     this.editUserForm.reset({ display_name: user.display_name });
+  }
+
+  beginPermissions(user: AdminUser): void {
+    if (!this.me()?.is_superuser || user.is_superuser) return;
+    this.clearFeedback();
+    this.permissionTarget.set(user);
+    this.selectedPermissions.set(user.permissions ?? []);
+  }
+
+  savePermissions(): void {
+    const target = this.permissionTarget();
+    if (!target || target.is_superuser || !this.me()?.is_superuser || this.busy()) return;
+    this.startAction();
+    this.api
+      .update(target.id, { permissions: this.selectedPermissions() })
+      .pipe(finalize(() => this.busy.set(false)))
+      .subscribe({
+        next: (updated) => {
+          this.users.update((users) =>
+            users.map((user) => (user.id === updated.id ? updated : user)),
+          );
+          this.permissionTarget.set(null);
+          this.message.set(
+            'Ekran ve işlem yetkileri kaydedildi. Kullanıcı yeni yetkileri için yeniden giriş yapmalıdır.',
+          );
+        },
+        error: (error: unknown) => this.error.set(this.errorMessage(error)),
+      });
   }
 
   cancelEdit(): void {
@@ -274,6 +311,9 @@ export class AdminUsersComponent implements OnInit {
       return 'Bu işlem için sistem yöneticisi yetkisi gerekiyor.';
     }
     if (error instanceof HttpErrorResponse && error.status === 409) {
+      if (error.error?.detail === 'Company active-user limit reached.') {
+        return 'Firmanızın aktif kullanıcı sınırına ulaşıldı. Bir hesabı pasifleştirin veya paket değişikliği isteyin.';
+      }
       return typeof error.error?.detail === 'string'
         ? error.error.detail
         : 'Kullanıcı adı kullanılıyor veya son yönetici hesabı değiştirilemez.';

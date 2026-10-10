@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 
 export const adminGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
-  if (auth.isAuthenticated()) {
+  if (auth.token() && auth.isAuthenticated()) {
     return true;
   }
   return inject(Router).createUrlTree(['/admin/giris'], {

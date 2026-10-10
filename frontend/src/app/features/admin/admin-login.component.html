@@ -29,7 +29,10 @@
       <button type="submit" class="button primary" [disabled]="busy()">
         {{ busy() ? 'Doğrulanıyor…' : 'Giriş yap' }}
       </button>
-      <p class="session-note">Oturum bilgisi bu tarayıcıda kalıcı olarak saklanmaz.</p>
+      <p class="session-note">
+        Oturum, süresi dolana kadar bu sekmedeki sayfa yenilemelerinde korunur. Parolanız
+        kaydedilmez.
+      </p>
     </form>
   </div>
 </section>

@@ -2,6 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AdminUser, AdminUserCreate, AdminUserUpdate } from './request.models';
+
+export interface PermissionGroup {
+  readonly key: string;
+  readonly label: string;
+  readonly actions: readonly { readonly key: string; readonly label: string }[];
+}
 import { RUNTIME_CONFIG } from './runtime-config';
 
 @Injectable({ providedIn: 'root' })
@@ -12,6 +18,10 @@ export class AdminUsersService {
 
   current(): Observable<AdminUser> {
     return this.http.get<AdminUser>(`${this.baseUrl}/me`);
+  }
+
+  permissions(): Observable<readonly PermissionGroup[]> {
+    return this.http.get<readonly PermissionGroup[]>(`${this.baseUrl}/permissions`);
   }
 
   list(): Observable<readonly AdminUser[]> {

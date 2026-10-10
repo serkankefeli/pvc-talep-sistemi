@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .page-heading {
   align-items: end;
   display: flex;
@@ -79,8 +84,8 @@
 .catalog-layout {
   align-items: start;
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: 0.75rem;
+  grid-template-columns: 11.5rem minmax(0, 1fr);
 }
 
 .product-sidebar {
@@ -155,6 +160,8 @@
 }
 
 .catalog-editor {
+  container-name: catalog-editor;
+  container-type: inline-size;
   display: grid;
   gap: 1rem;
   min-width: 0;
@@ -168,6 +175,8 @@
   align-items: center;
   border-bottom: 1px solid var(--line);
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   justify-content: space-between;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
@@ -496,6 +505,7 @@
 .inline-actions {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -526,9 +536,20 @@ code {
   padding: 0.1rem 0.2rem;
 }
 
-@media (max-width: 1050px) {
+@container catalog-editor (max-width: 900px) {
   .subeditors {
     grid-template-columns: 1fr;
+  }
+}
+
+@container catalog-editor (max-width: 480px) {
+  .editor-form,
+  .inline-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .field-wide {
+    grid-column: 1;
   }
 }
 

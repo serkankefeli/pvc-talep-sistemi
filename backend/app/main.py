@@ -13,9 +13,13 @@ from .admin_users_api import build_admin_users_router
 from .branding_api import build_branding_router
 from .catalog_api import build_catalog_router
 from .config import Settings
+from .company import build_company_router
+from .commerce import build_commerce_router
+from .landing import build_landing_router
 from .db import create_db_and_tables, create_db_engine
 from .mailer import MailService, SmtpMailService
 from .middleware import RequestBodyLimitMiddleware, SecurityHeadersMiddleware
+from .subscription_access import SubscriptionAccessMiddleware
 
 
 def create_app(
@@ -25,6 +29,9 @@ def create_app(
     mailer: MailService | None = None,
 ) -> FastAPI:
     app_settings = settings or Settings()
+    if app_settings.saas_enabled:
+        from .saas import create_saas_app
+        return create_saas_app(app_settings)
     app_engine = engine or create_db_engine(app_settings.database_url)
     app_mailer = mailer or SmtpMailService(app_settings)
 
@@ -43,6 +50,7 @@ def create_app(
         lifespan=lifespan,
     )
 
+    app.add_middleware(SubscriptionAccessMiddleware, engine=app_engine)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_origin_list,
@@ -56,6 +64,8 @@ def create_app(
         max_bytes=app_settings.max_request_body_bytes,
         path_limits={
             "/api/v1/admin/site-branding/logo": app_settings.max_branding_logo_bytes,
+            "/api/v1/admin/landing-media": app_settings.max_branding_logo_bytes,
+            "/api/v1/admin/landing-page": 1_048_576,
         },
     )
     app.add_middleware(
@@ -103,6 +113,9 @@ def create_app(
             engine=app_engine,
         )
     )
+    app.include_router(build_company_router(settings=app_settings, engine=app_engine))
+    app.include_router(build_commerce_router(settings=app_settings, engine=app_engine))
+    app.include_router(build_landing_router(settings=app_settings, engine=app_engine))
     app.state.settings = app_settings
     app.state.engine = app_engine
     return app

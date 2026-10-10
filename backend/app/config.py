@@ -25,6 +25,24 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./pvc_requests.db"
 
+    # SaaS registry is operator-owned; no public endpoint accepts database URLs.
+    saas_enabled: bool = False
+    saas_manifest_path: str = "/data/tenants.json"
+    saas_upload_root: str = "/data/uploads/tenants"
+    saas_max_tenants: int = Field(default=100, ge=1, le=1000)
+    tenant_slug: str = Field(default="sunyapi", pattern=r"^[a-z][a-z0-9-]{1,62}$")
+    tenant_name: str = Field(default="Sunyapı", min_length=2, max_length=120)
+    tenant_saas: bool = False
+    subscription_reminder_days: str = "30,14,7,1"
+
+    @field_validator("subscription_reminder_days")
+    @classmethod
+    def validate_reminder_days(cls, value: str) -> str:
+        days = [int(item.strip()) for item in value.split(",")]
+        if not days or len(set(days)) != len(days) or any(day < 1 or day > 60 for day in days):
+            raise ValueError("Reminder days must be unique integers between 1 and 60")
+        return ",".join(str(day) for day in sorted(days, reverse=True))
+
     # Comma-separated exact origins. Wildcards are deliberately rejected.
     cors_origins: str = "http://localhost:4200"
 

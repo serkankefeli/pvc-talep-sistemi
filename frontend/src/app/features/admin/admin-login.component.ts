@@ -41,7 +41,7 @@ export class AdminLoginComponent {
     this.auth.login(username, password).subscribe({
       next: () => {
         const requested = this.route.snapshot.queryParamMap.get('returnUrl');
-        const destination = requested?.startsWith('/admin/') ? requested : '/admin/talepler';
+        const destination = requested?.startsWith('/admin/') ? requested : this.auth.homeUrl();
         void this.router.navigateByUrl(destination);
       },
       error: (error: unknown) => {

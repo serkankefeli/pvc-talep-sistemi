@@ -22,6 +22,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from .config import Settings
+from .company import enforce_request_limit
 from .catalog import validate_catalog_submission
 from .mailer import AdminNotification, MailService
 from .models import (
@@ -58,6 +59,7 @@ from .security import (
     create_access_token,
     verify_password,
 )
+from .permissions import effective_permissions
 
 
 logger = logging.getLogger(__name__)
@@ -297,6 +299,7 @@ def build_router(
         resolved_profile_specs = [
             validate_catalog_submission(session, item) for item in payload.items
         ]
+        enforce_request_limit(session)
         request_number = _create_request_number(session)
         contact = payload.contact
         model = QuoteRequest(
@@ -399,6 +402,7 @@ def build_router(
             username=user.username,
             display_name=user.display_name,
             is_superuser=user.is_superuser,
+            permissions=list(effective_permissions(user)),
         )
 
     @router.get(

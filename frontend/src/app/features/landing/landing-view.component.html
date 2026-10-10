@@ -1,0 +1,249 @@
+@let data = page();
+<div class="landing">
+  <section class="intro">
+    <div class="intro-copy">
+      <p class="eyebrow">{{ data.eyebrow }}</p>
+      <h1>{{ data.hero_title }}</h1>
+      <p class="lead">{{ data.hero_description }}</p>
+      <div class="actions">
+        @if (data.purchase_visible) {
+          <a class="primary purchase-button" routerLink="/satin-al"
+            >{{ data.purchase_label || 'Satın al' }} <span aria-hidden="true">↗</span></a
+          >
+        }
+        @if (data.primary_label) {
+          <a
+            class="primary"
+            [routerLink]="data.primary_target.startsWith('#') ? '/' : data.primary_target"
+            [fragment]="
+              data.primary_target.startsWith('#') ? data.primary_target.slice(1) : undefined
+            "
+            >{{ data.primary_label }} <span aria-hidden="true">↗</span></a
+          >
+        }
+        @if (data.secondary_label) {
+          <a
+            class="secondary"
+            [routerLink]="data.secondary_target.startsWith('#') ? '/' : data.secondary_target"
+            [fragment]="
+              data.secondary_target.startsWith('#') ? data.secondary_target.slice(1) : undefined
+            "
+            >{{ data.secondary_label }} <span aria-hidden="true">→</span></a
+          >
+        }
+      </div>
+      @if (data.purchase_visible) {
+        @let annual = offer();
+        @if (annual && annual.available) {
+          <p class="annual-price">
+            <strong>{{ annual.total_amount }} TL</strong> / yıl
+            <small>Vergiler dahil · Yazılım aboneliği · Otomatik yenileme yok</small>
+          </p>
+        } @else {
+          <p class="price-note">
+            Yıllık yazılım aboneliği hakkında bilgi ve satın alma için ilerleyin.
+          </p>
+        }
+      }
+      <ul class="badges">
+        @for (badge of data.badges; track $index) {
+          <li><span aria-hidden="true">✓</span>{{ badge }}</li>
+        }
+      </ul>
+    </div>
+    <div class="visual">
+      @if (data.hero_image_url) {
+        <img
+          class="hero-image"
+          [src]="mediaUrl(data.hero_image_url)"
+          [alt]="data.hero_image_alt"
+          fetchpriority="high"
+        />
+      } @else {
+        <div class="drawing" aria-label="Ölçülü pencere ön çizimi">
+          <div class="drawing-top"><span>PROJE / 01</span><span class="dot">Ön görünüş</span></div>
+          <div class="width-mark">1200 mm</div>
+          <div class="window-wrap">
+            <span class="height-mark">1000 mm</span>
+            <div class="window-frame">
+              <div class="glass"><i></i><b></b></div>
+              <div class="glass fixed"><span>+</span></div>
+            </div>
+          </div>
+          <div class="drawing-bottom">
+            <span>01 · PVC pencere</span><span>Ön değerlendirme</span>
+          </div>
+        </div>
+        <div class="floating-card">
+          <span class="round-check" aria-hidden="true">✓</span>
+          <div>
+            <strong>Projenizi görselleştirin</strong><small>Ölçü · Model · Tercihler</small>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  @for (section of data.sections; track section.key) {
+    @if (section.enabled) {
+      <section
+        class="content-section"
+        [class.soft]="section.key === 'process'"
+        [id]="sectionId(section.key)"
+      >
+        <div class="section-heading">
+          <span class="section-index">0{{ $index + 1 }}</span>
+          <div>
+            <h2>{{ section.title }}</h2>
+            @if (section.description) {
+              <p>{{ section.description }}</p>
+            }
+          </div>
+        </div>
+        @switch (section.key) {
+          @case ('deployment') {
+            <div class="process-grid">
+              @for (card of data.deployment; track $index) {
+                <article class="feature-card">
+                  @if (card.image_url) {
+                    <img
+                      class="feature-image"
+                      [src]="mediaUrl(card.image_url)"
+                      [alt]="card.image_alt"
+                      loading="lazy"
+                    />
+                  }
+                  <h3>{{ card.title }}</h3>
+                  <p>{{ card.description }}</p>
+                </article>
+              }
+            </div>
+          }
+          @case ('features') {
+            <div class="feature-grid">
+              @for (card of data.features; track $index) {
+                <article class="feature-card">
+                  @if (card.image_url) {
+                    <img
+                      class="feature-image"
+                      [src]="mediaUrl(card.image_url)"
+                      [alt]="card.image_alt"
+                      loading="lazy"
+                    />
+                  } @else {
+                    <span class="feature-icon" aria-hidden="true">{{
+                      icons[$index % icons.length]
+                    }}</span>
+                  }
+                  <h3>{{ card.title }}</h3>
+                  <p>{{ card.description }}</p>
+                </article>
+              }
+            </div>
+          }
+          @case ('process') {
+            <div class="process-grid">
+              @for (step of data.process; track $index) {
+                <article class="step">
+                  <span class="step-number">{{ ($index + 1).toString().padStart(2, '0') }}</span>
+                  @if (step.image_url) {
+                    <img
+                      class="feature-image"
+                      [src]="mediaUrl(step.image_url)"
+                      [alt]="step.image_alt"
+                      loading="lazy"
+                    />
+                  }
+                  <h3>{{ step.title }}</h3>
+                  <p>{{ step.description }}</p>
+                </article>
+              }
+            </div>
+          }
+          @case ('gallery') {
+            <div class="gallery-grid">
+              @for (card of data.gallery; track $index) {
+                <article class="model-card">
+                  <div class="model-visual">
+                    @if (card.image_url) {
+                      <img [src]="mediaUrl(card.image_url)" [alt]="card.image_alt" loading="lazy" />
+                    } @else {
+                      <div
+                        class="mini-frame"
+                        [class.triptych]="$index % 3 === 1"
+                        [class.balcony]="$index % 3 === 2"
+                      >
+                        <span></span><span></span>
+                        @if ($index % 3 !== 0) {
+                          <span></span>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <div class="model-copy">
+                    <h3>{{ card.title }}</h3>
+                    <p>{{ card.description }}</p>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+          @case ('faq') {
+            <div class="faq-list">
+              @for (item of data.faq; track $index) {
+                <details>
+                  <summary>{{ item.question }}<span aria-hidden="true">+</span></summary>
+                  <p>{{ item.answer }}</p>
+                </details>
+              }
+            </div>
+          }
+          @case ('contact') {
+            <div class="contact-grid">
+              <div>
+                <h3>{{ data.contact_title }}</h3>
+                <p>{{ data.contact_description }}</p>
+              </div>
+              <address>
+                @if (data.contact_email) {
+                  <a [href]="'mailto:' + data.contact_email"
+                    >{{ data.contact_email }} <span aria-hidden="true">↗</span></a
+                  >
+                }
+                @if (data.contact_phone) {
+                  <a [href]="phoneUrl(data.contact_phone)"
+                    >{{ data.contact_phone }} <span aria-hidden="true">↗</span></a
+                  >
+                }
+                @if (data.contact_address) {
+                  <p>{{ data.contact_address }}</p>
+                }
+                @if (!data.contact_email && !data.contact_phone) {
+                  <a routerLink="/talep-olustur">Görsel talep oluştur →</a>
+                }
+              </address>
+            </div>
+          }
+        }
+      </section>
+    }
+  }
+  @if (data.closing_title || data.closing_label) {
+    <section class="closing">
+      <div>
+        <h2>{{ data.closing_title }}</h2>
+        <p>{{ data.closing_description }}</p>
+      </div>
+      @if (data.closing_label) {
+        <a
+          class="primary"
+          [routerLink]="data.closing_target.startsWith('#') ? '/' : data.closing_target"
+          [fragment]="
+            data.closing_target.startsWith('#') ? data.closing_target.slice(1) : undefined
+          "
+          >{{ data.closing_label }} ↗</a
+        >
+      }
+    </section>
+  }
+</div>

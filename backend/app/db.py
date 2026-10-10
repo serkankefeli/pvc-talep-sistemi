@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from .config import Settings
+from .permissions import LEGACY_PERMISSIONS
 
 
 def create_db_engine(database_url: str) -> Engine:
@@ -22,17 +23,58 @@ def create_db_engine(database_url: str) -> Engine:
 def create_db_and_tables(engine: Engine, *, settings: Settings | None = None) -> None:
     # Import registers the catalog tables before metadata creation.
     from .catalog import seed_catalog
-    from .models import SiteBranding
+    from .models import CompanyAccount, SiteBranding
+    from .commerce import seed_commerce
+    from .landing import seed_landing
 
     SQLModel.metadata.create_all(engine)
+    _ensure_admin_permissions(engine)
+    _ensure_subscription_columns(engine)
+    with Session(engine) as session:
+        account = session.get(CompanyAccount, 1)
+        if account is not None and settings is not None and account.slug != settings.tenant_slug:
+            raise ValueError("This database already belongs to a different company")
     _ensure_catalog_field_dynamic_columns(engine)
     if settings is not None:
         _ensure_bootstrap_admin(engine, settings)
     seed_catalog(engine)
     with Session(engine) as session:
+        if settings is not None:
+            account = session.get(CompanyAccount, 1)
+            if account is None:
+                session.add(CompanyAccount(slug=settings.tenant_slug, name=settings.tenant_name))
+            elif account.slug != settings.tenant_slug:
+                raise ValueError("This database already belongs to a different company")
         if session.get(SiteBranding, 1) is None:
             session.add(SiteBranding())
-            session.commit()
+        seed_commerce(session)
+        seed_landing(session)
+        session.commit()
+
+
+def _ensure_admin_permissions(engine: Engine) -> None:
+    """Add permissions without resetting existing accounts or passwords."""
+    import json
+    columns = {column["name"] for column in inspect(engine).get_columns("admin_users")}
+    if "permissions" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE admin_users ADD COLUMN permissions JSON NULL"))
+            value = "CAST(:permissions AS JSON)" if engine.dialect.name == "postgresql" else ":permissions"
+            connection.execute(text(f"UPDATE admin_users SET permissions = {value}"),
+                               {"permissions": json.dumps(LEGACY_PERMISSIONS)})
+
+
+def _ensure_subscription_columns(engine: Engine) -> None:
+    columns = {column["name"] for column in inspect(engine).get_columns("company_account")}
+    statements = {
+        "subscription_starts_at": "ALTER TABLE company_account ADD COLUMN subscription_starts_at TIMESTAMP NULL",
+        "subscription_ends_at": "ALTER TABLE company_account ADD COLUMN subscription_ends_at TIMESTAMP NULL",
+        "subscription_email": "ALTER TABLE company_account ADD COLUMN subscription_email VARCHAR(254) NULL",
+    }
+    with engine.begin() as connection:
+        for name, statement in statements.items():
+            if name not in columns:
+                connection.execute(text(statement))
 
 
 def _ensure_bootstrap_admin(engine: Engine, settings: Settings) -> None:

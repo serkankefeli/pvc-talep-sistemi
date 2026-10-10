@@ -2269,6 +2269,9 @@ export class ConfiguratorComponent {
 
   private publicErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse && error.status === 429) {
+      if (error.error?.detail === 'Company monthly request limit reached.') {
+        return 'Bu firmanın yeni talep alımı şu anda kapalı. Lütfen firmayla doğrudan iletişime geçin. Çiziminiz bu ekranda korunuyor.';
+      }
       return 'Kısa sürede çok sayıda gönderim yapıldı. Lütfen biraz bekleyip yeniden deneyin.';
     }
     if (error instanceof HttpErrorResponse && (error.status === 409 || error.status === 422)) {

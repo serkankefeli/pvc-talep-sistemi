@@ -4,10 +4,85 @@ from typing import Any
 
 from sqlalchemy import JSON, Column, Numeric, Text, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
+from .permissions import LEGACY_PERMISSIONS
 
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class CompanyAccount(SQLModel, table=True):
+    """Single company per isolated tenant database; limits are operator-owned."""
+
+    __tablename__ = "company_account"
+
+    id: int = Field(default=1, primary_key=True)
+    slug: str = Field(max_length=64)
+    name: str = Field(max_length=120)
+    plan: str = Field(default="legacy", max_length=32)
+    status: str = Field(default="active", max_length=16)
+    seat_limit: int | None = None
+    monthly_request_limit: int | None = None
+    trial_ends_at: datetime | None = None
+    subscription_starts_at: datetime | None = None
+    subscription_ends_at: datetime | None = None
+    subscription_email: str | None = Field(default=None, max_length=254)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class SubscriptionReminder(SQLModel, table=True):
+    __tablename__ = "subscription_reminders"
+    term_key: str = Field(primary_key=True, max_length=64)
+    days_before: int = Field(primary_key=True)
+    state: str = Field(default="pending", max_length=16)
+    attempts: int = 0
+    last_attempt_at: datetime | None = None
+    sent_at: datetime | None = None
+
+
+class CommerceSettings(SQLModel, table=True):
+    __tablename__ = "commerce_settings"
+    id: int = Field(default=1, primary_key=True)
+    data: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    revision: int = 1
+
+
+class LandingPage(SQLModel, table=True):
+    __tablename__ = "landing_pages"
+    id: int = Field(default=1, primary_key=True)
+    data: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    revision: int = 1
+
+
+class LandingMedia(SQLModel, table=True):
+    __tablename__ = "landing_media"
+    id: str = Field(primary_key=True, max_length=40)
+    filename: str = Field(max_length=48)
+    content_type: str = Field(max_length=32)
+
+
+class PaymentLinkAcceptance(SQLModel, table=True):
+    """Agreement snapshot, NOT evidence of payment or entitlement."""
+    __tablename__ = "payment_link_acceptances"
+    id: str = Field(primary_key=True, max_length=36)
+    admin_user_id: int = Field(foreign_key="admin_users.id")
+    settings_revision: int
+    snapshot: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class SubscriptionPurchaseIntent(SQLModel, table=True):
+    """Prospective subscriber's terms snapshot; no payment or account grant."""
+    __tablename__ = "subscription_purchase_intents"
+    id: str = Field(primary_key=True, max_length=36)
+    full_name: str = Field(max_length=120)
+    company_name: str = Field(max_length=160)
+    email: str = Field(max_length=254)
+    usage_mode: str = Field(max_length=16)
+    settings_revision: int
+    snapshot: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 class QuoteRequest(SQLModel, table=True):
@@ -122,6 +197,10 @@ class AdminUser(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     is_active: bool = Field(default=True, index=True)
     is_superuser: bool = Field(default=False, index=True)
+    permissions: list[str] = Field(
+        default_factory=lambda: list(LEGACY_PERMISSIONS),
+        sa_column=Column(JSON, nullable=False),
+    )
     token_version: int = Field(default=1, ge=1)
     last_login_at: datetime | None = None
     password_changed_at: datetime = Field(default_factory=utc_now)

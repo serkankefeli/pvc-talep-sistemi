@@ -12,6 +12,12 @@ backend/build/
 .env
 backend/.env.docker
 backend/data/
+# Operator-owned SaaS manifests contain database and SMTP credentials.
+tenants*.json
+.runtime/pytest-*/
+.runtime/production-deploy/
+.runtime/iyzico-assets/
+.runtime/session-hotfix/
 *.db
 *.sqlite
 *.sqlite3

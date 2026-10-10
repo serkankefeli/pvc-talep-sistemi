@@ -64,6 +64,20 @@ Sistem yöneticileri hesapları etkinleştirebilir, devre dışı bırakabilir, 
 verebilir ve başka bir kullanıcının parolasını sıfırlayabilir. Her kullanıcı
 mevcut parolasını doğrulayarak kendi parolasını değiştirebilir. Parola veya
 hesap durumu değiştiğinde eski oturumlar sunucu tarafında geçersiz kılınır.
+Sistem yöneticisi ayrıca her kullanıcı için ekran görüntüleme, düzenleme,
+e-posta gönderme ve abonelik işlemi yetkilerini ayrı ayrı tanımlar. Yetkisiz
+menüler arayüzde gösterilmez; doğrudan URL ve API erişimi sunucu tarafından da
+reddedilir. Yeni çalışan hesapları açıkça yetki verilene kadar yalnız kendi
+hesap ve parola ekranına erişir.
+
+Yönetici oturumu aynı sekmedeki sayfa yenilemelerinde korunur. Kısa ömürlü erişim
+anahtarı yalnız `sessionStorage` içinde, API adresine bağlı olarak tutulur; parola
+ve kullanıcı rolü depolanmaz. Yenilemede `/admin/users/me` ile sunucu doğrulaması
+yapılır. Süre dolunca veya çıkış yapınca kayıt temizlenir; yenileme oturum süresini
+uzatmaz. Varsayılan süre `JWT_EXPIRE_MINUTES=15` dakikadır. Tarayıcı sekme kurtarma
+özelliği geçerli sekme kaydını geri getirebilir; ortak cihazda mutlaka güvenli çıkış
+yapın. `sessionStorage` JavaScript tarafından okunabilir: HTTPS, CSP ve XSS
+korumaları önemlidir; bu özellik HttpOnly çerezli uzun süreli oturum değildir.
 
 ## Teknoloji
 
@@ -266,3 +280,95 @@ Get-Content C:\Users\kefel\PycharmProjects\pvc\.runtime\frontend.run.log -Tail 5
 
 Frontend yeniden derlendikten sonra tarayıcı eski paketleri arıyorsa sayfayı
 `Ctrl + F5` ile yenileyin.
+
+## Çok firmalı SaaS hazırlığı
+
+Firma başına ayrı veritabanı/logo dizini, alan adı üzerinden firma seçimi,
+firma bazlı oturumlar ve manuel paket/deneme/kota yönetimi hazırlanmıştır.
+Yönetimde **Firma / Paket** ekranı kullanım bilgilerini gösterir.
+Varsayılan kurulum tek firmalı kalır; otomatik abonelik aktivasyonu henüz yoktur.
+Etkinleştirme, yeni firma açma ve geri dönüş adımları: [SaaS rehberi](docs/SAAS.md).
+
+Ücretli firma kayıtları bir yıllık abonelikle açılır. Süre bitince üye giriş
+yapabilir ve abonelik ekranını görebilir, ancak işlemleri kullanamaz; veriler
+silinmez. Son 30 günde 30/14/7/1 günlük hatırlatmalar için opsiyonel
+`compose.subscriptions.yaml` servisi, firma iletişim adresi ve SMTP yapılandırması
+gereklidir. Yenileme ve servis kurulumu SaaS rehberinde açıklanmıştır.
+
+## Sözleşmeler ve iyzico Link
+
+Yönetim → **Sözleşmeler / Ödeme ayarları** ekranında satıcı bilgileri, gizlilik/KVKK,
+iptal-iade ve mesafeli satış metinleri düzenlenir. Başlangıç metinleri hukuki inceleme
+bekleyen taslaklardır; kendiliğinden yayımlanmaz. Satıcı unvanı/adresi, vergi/MERSİS
+bilgileri, destek e-postası/telefonu tamamlanmadan metinler yayımlanamaz.
+
+Üç metin yayımlanıp incelendikten, hizmet kapsamı/toplam bedel ve gerçek
+`https://iyzi.link/...` adresi tanımlandıktan sonra ödeme açılır. **Abonelik ödemesi**
+ekranı açık onay alıp iyzico'ya yönlendirir; kart bilgisi bu uygulamada alınmaz.
+Aboneliği biten kullanıcı bu ekrana ve sözleşmelere erişebilir. Bağlantıya tıklamak
+ödeme kanıtı değildir; abonelik operatörün ödeme doğrulaması ve manuel yenilemesiyle
+açılır. Fiyatlar herkese açık doğrama talep ekranına eklenmemiştir.
+
+Ödeme linkindeki bedel/ürün ve uygulamadaki teklif/sözleşme bilgilerinin aynı olması
+operatörün sorumluluğundadır. Gerçek ödeme, faturalar ve hukuki metinler canlıya
+geçmeden önce ayrıca kontrol edilmelidir. Ayrıntılar: [SaaS rehberi](docs/SAAS.md).
+
+## Yönetilebilir tanıtım sayfası
+
+Ana adres `/` tanıtım sayfasıdır; müşteri çizim akışı `/talep-olustur` adresinden
+devam eder. Yönetim → **Tanıtım sayfası** (`/admin/tanitim`) ekranı sistem
+yöneticisi yetkisiyle açılır.
+
+Panelden açılış başlığı/açıklaması, kapak görseli, vurgu etiketleri, buton metinleri
+ve hedefleri, özellik kartları, çalışma adımları, model görselleri, sık sorulan
+sorular, iletişim bilgileri ve sayfa başlığı/açıklaması düzenlenebilir. Bölümler
+gizlenebilir, kaldırılabilir, tekrar eklenebilir ve sıralanabilir; kartlar ve
+sorular eklenip kaldırılabilir. Bölümü kaldırmak o bölümün kartlarını silmez.
+**Kaydetmeden ön izle** yayımlanmamış değişiklikleri gösterir. Değişiklikler
+**Değişiklikleri kaydet** ile uygulanır; yayın kutusu kaldırılıp kaydedildiğinde
+tanıtım içeriği ziyaretçiye gösterilmez, talep ekranı bağlantısı korunur.
+
+İçerik her firmanın kendi veritabanında tutulur; uygulama yeniden başladığında
+mevcut içerik başlangıç metinleriyle değiştirilmez. Eşzamanlı düzenlemeler için
+revizyon kontrolü vardır. Başlangıç metinleri örnektir; gerçek iletişim ve
+görseller panelden girilmelidir. Tanıtım sayfasında otomatik doğrama fiyatı yoktur.
+
+Görseller en fazla 2 MB PNG/JPEG/WebP olarak yüklenebilir veya HTTPS adresiyle
+tanımlanabilir. Yüklemeler firmanın logo dizini altındaki `landing/` dizinine
+kaydedilir; veritabanı ve yükleme dizini birlikte yedeklenmelidir. Yüklenen
+tanıtım görselleri URL'yi bilenlere açıktır (sayfa yayından kaldırıldığında bile);
+gizli veya kişisel belge yüklemeyin. Kartı/görsel adresini kaldırmak dosyayı
+fiziksel olarak silmez. Dış görsel sağlayıcının ziyaretçi IP adresini alabileceği
+unutulmamalıdır; tercihen uygulamaya yüklenen görselleri kullanın.
+
+Ana sayfada **Satın al** butonu `/satin-al` adresine gider. Buton görünürlüğü ve
+metni tanıtım panelinden; yıllık yazılım bedeli **Sözleşmeler / Ödeme ayarları**
+ekranından yönetilir. **Yıllık fiyatı ana sayfada yayımla** kutusu açılmadan
+mevcut özel fiyatlar herkese gösterilmez. Yıllık bedel girilip yayın kutusu
+açılarak kaydedilince ana sayfa, satın alma ekranı ve üye yenileme ekranı aynı
+bedeli kullanır. iyzico Link üzerindeki bedel ayrıca aynı değere getirilmelidir.
+Fiyat gösterimi ile online ödeme ayrı ayarlardır; sözleşmeler ve ödeme linki
+tamamlanmadan tahsilat akışı açılmaz. Bu yalnızca yazılım abonelik fiyatıdır;
+doğrama taleplerinin teklif fiyatları gizli kalır.
+
+Yeni alıcı hesabı olmadan firma/ad/e-posta ve kullanım tercihi (siteye entegre
+veya bağımsız) ile başvurabilir. İşaretlenmemiş koşul kutularının açık kabulü
+sonrasında başvuru referansı ve kabul edilen bedel/metinlerin sürümü kaydedilir.
+Tekrarlı aynı başvuru bir kez kaydedilir; fiyat/metin değişirse yeniden onay
+istenir. Başvurular aynı ödeme ayarları ekranında sistem yöneticisine gösterilir.
+Bu kayıtlar ödeme kanıtı değildir: operatör iyzico'da ödemeyi doğruladıktan sonra
+firma alanını açar ve SaaS yıllık aboneliğini başlatır. Otomatik hesap açma,
+tahsilat, ödeme eşleştirme veya abonelik aktivasyonu yoktur.
+
+**Firma sayfası ve kullanım biçimleri** bölümü panelden düzenlenebilir. Ayrı
+sayfa firma bazındadır; aynı firmadaki kullanıcılar ortak marka/sayfayı paylaşır.
+Alan adı/alt alan adı ve entegrasyon kurulumu operatörce yapılır. Mevcut siteye
+bağlantı verme mümkündür; farklı alan adından iframe gömme varsayılan CSP ile
+kapalıdır ve yalnızca güvenilen firma adresleri için ayrıca yapılandırılmalıdır.
+Satın alma bir kullanıcıya kendiliğinden alan adı tahsis etmez.
+
+HTML/JavaScript çalıştıran serbest sayfa editörü yerine güvenli metin ve
+sınırlandırılmış bölüm modeli kullanılır. Buton hedefleri talep ekranı, yönetici
+girişi, satın alma, özellikler veya iletişim bölümüyle sınırlıdır. SPA başlık/açıklama
+alanları düzenlenebilir; arama motoru indekslenmesi için SSR/prerender bu aşamada
+eklenmemiştir.

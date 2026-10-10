@@ -18,7 +18,29 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(authenticatedRequest).pipe(
     catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse && error.status === 401 && token && isAdminRequest) {
+      if (
+        error instanceof HttpErrorResponse &&
+        error.status === 403 &&
+        error.error?.detail === 'SUBSCRIPTION_EXPIRED' &&
+        token &&
+        isAdminRequest
+      ) {
+        void router.navigate(['/admin/abonelik-bitti']);
+      }
+      if (
+        error instanceof HttpErrorResponse &&
+        error.status === 403 &&
+        error.error?.detail === 'PERMISSION_DENIED' &&
+        isAdminRequest
+      ) {
+        void router.navigate(['/admin/yetkisiz']);
+      }
+      if (
+        error instanceof HttpErrorResponse &&
+        error.status === 401 &&
+        isAdminRequest &&
+        request.url !== `${config.apiUrl}/api/v1/admin/login`
+      ) {
         auth.logout();
         void router.navigate(['/admin/giris']);
       }

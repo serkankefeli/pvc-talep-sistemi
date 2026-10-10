@@ -237,6 +237,12 @@ small {
   justify-content: flex-end;
 }
 
+.permission-dialog {
+  max-width: 48rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
 .feedback {
   border-radius: 0.75rem;
   bottom: 1.25rem;

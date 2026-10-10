@@ -7,7 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .config import Settings
+from .company import enforce_seat_limit
 from .models import AdminUser, utc_now
+from .permissions import PERMISSION_GROUPS, effective_permissions
 from .schemas import (
     AdminPasswordChange,
     AdminPasswordReset,
@@ -24,7 +26,9 @@ from .security import (
 
 
 def _response(user: AdminUser) -> AdminUserResponse:
-    return AdminUserResponse.model_validate(user, from_attributes=True)
+    response = AdminUserResponse.model_validate(user, from_attributes=True)
+    response.permissions = list(effective_permissions(user))
+    return response
 
 
 def build_admin_users_router(*, settings: Settings, engine: Engine) -> APIRouter:
@@ -44,6 +48,10 @@ def build_admin_users_router(*, settings: Settings, engine: Engine) -> APIRouter
                 detail="System administrator permission is required.",
             )
         return principal
+
+    @router.get("/permissions")
+    def permission_catalog(_: AdminPrincipal = Depends(require_superuser)):
+        return PERMISSION_GROUPS
 
     @router.get("/me", response_model=AdminUserResponse)
     def current_user(
@@ -75,12 +83,14 @@ def build_admin_users_router(*, settings: Settings, engine: Engine) -> APIRouter
         _: AdminPrincipal = Depends(require_superuser),
         session: Session = Depends(get_session),
     ) -> AdminUserResponse:
+        enforce_seat_limit(session)
         user = AdminUser(
             username=payload.username.casefold(),
             display_name=payload.display_name,
             password_hash=hash_password(payload.password),
             is_active=True,
             is_superuser=payload.is_superuser,
+            permissions=payload.permissions,
         )
         session.add(user)
         try:
@@ -104,6 +114,8 @@ def build_admin_users_router(*, settings: Settings, engine: Engine) -> APIRouter
         user = session.get(AdminUser, user_id)
         if user is None:
             raise HTTPException(status_code=404, detail="Administrator not found.")
+        if payload.is_active is True and not user.is_active:
+            enforce_seat_limit(session)
         if user.id == principal.id and (
             payload.is_active is False or payload.is_superuser is False
         ):
@@ -132,8 +144,12 @@ def build_admin_users_router(*, settings: Settings, engine: Engine) -> APIRouter
         if payload.is_active is not None and payload.is_active != user.is_active:
             user.is_active = payload.is_active
             user.token_version += 1
-        if payload.is_superuser is not None:
+        if payload.is_superuser is not None and payload.is_superuser != user.is_superuser:
             user.is_superuser = payload.is_superuser
+            user.token_version += 1
+        if payload.permissions is not None and payload.permissions != user.permissions:
+            user.permissions = payload.permissions
+            user.token_version += 1
         user.updated_at = utc_now()
         session.add(user)
         session.commit()
