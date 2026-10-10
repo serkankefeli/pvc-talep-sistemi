@@ -8,7 +8,7 @@
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
   margin-inline: auto;
-  max-width: 1440px;
+  max-width: 1520px;
   min-height: calc(100dvh - 8.5rem);
   width: calc(100% - clamp(1rem, 2.5vw, 3rem));
 }
